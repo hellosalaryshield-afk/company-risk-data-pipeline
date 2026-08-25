@@ -109,6 +109,22 @@ Expected output:
 Database connection ok.
 ```
 
+## Database Migrations
+
+Apply migrations to Neon:
+
+```powershell
+python -m alembic upgrade head
+```
+
+Check current migration version:
+
+```powershell
+python -m alembic current
+```
+
+The initial schema is documented in [docs/database-schema.md](docs/database-schema.md).
+
 ## Git Workflow
 
 Check changed files:
@@ -127,7 +143,7 @@ git push
 
 ## Next Milestones
 
-1. Add Alembic migration setup.
-2. Create the first database models: companies, company aliases, sources, collection runs, and raw source records.
-3. Implement company registry and alias matching.
-4. Add the source-adapter interface before implementing any real APIs or scrapers.
+1. Implement company registry and alias matching.
+2. Add scripts to seed the first pilot companies.
+3. Add the source-adapter interface before implementing real APIs or scrapers.
+4. Build one real source adapter with mocked tests.
