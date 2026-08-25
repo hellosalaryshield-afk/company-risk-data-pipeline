@@ -1,0 +1,133 @@
+# Company Risk Data Pipeline
+
+Backend/data-pipeline foundation for a company layoff-risk research project.
+
+The long-term system will accept a company name, resolve it to a canonical company, collect KPI data from APIs and public web sources, normalize the collected records, store them in PostgreSQL, and generate reports that can support risk scoring.
+
+This repository is currently at **Step 1: project foundation**. It does not yet include scraping, source integrations, ML, reports, or a user dashboard.
+
+## Current Architecture
+
+```text
+app/
+  api/             FastAPI routes
+  companies/       Company registry and entity resolution later
+  config/          Settings and logging
+  database/        SQLAlchemy/Neon connection setup
+  models/          Database models later
+  normalization/   Data normalization later
+  pipeline/        Collection orchestration later
+  reports/         HTML/PDF reports later
+  schemas/         Pydantic schemas later
+  sources/         API and scraper adapters later
+  utils/           Shared utilities
+
+tests/
+  unit/
+  integration/
+
+scripts/
+docs/
+```
+
+## Requirements
+
+- Python 3.11 or newer
+- Git
+- Neon PostgreSQL connection string
+
+## Local Setup
+
+Create and activate a virtual environment:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+Install the project in editable mode with development tools:
+
+```powershell
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+```
+
+Create your local environment file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Then edit `.env` and add your real Neon connection string:
+
+```text
+APP_ENV=development
+LOG_LEVEL=INFO
+DATABASE_URL=postgresql+psycopg://user:password@host:5432/database?sslmode=require
+```
+
+Never commit `.env`.
+
+## Run The API
+
+```powershell
+uvicorn app.main:app --reload
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "app_env": "development"
+}
+```
+
+## Run Tests
+
+```powershell
+pytest
+```
+
+## Check Neon Connection
+
+After adding your real `DATABASE_URL` to `.env`, run:
+
+```powershell
+python scripts/check_database.py
+```
+
+Expected output:
+
+```text
+Database connection ok.
+```
+
+## Git Workflow
+
+Check changed files:
+
+```powershell
+git status --short
+```
+
+Commit a milestone:
+
+```powershell
+git add .
+git commit -m "feat: initialize Python project foundation"
+git push
+```
+
+## Next Milestones
+
+1. Add Alembic migration setup.
+2. Create the first database models: companies, company aliases, sources, collection runs, and raw source records.
+3. Implement company registry and alias matching.
+4. Add the source-adapter interface before implementing any real APIs or scrapers.
