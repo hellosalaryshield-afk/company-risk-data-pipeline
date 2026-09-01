@@ -1,6 +1,12 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
+from app.companies.normalization import normalize_company_name
+from app.companies.repository import CompanyRepository
+from app.companies.resolver import CompanyResolver
 from app.config.settings import get_settings
+from app.database.session import get_db_session
+from app.schemas.company import CompanyCreate, CompanyRead, CompanyResolveRequest, CompanyResolveResponse
 
 router = APIRouter()
 
@@ -12,3 +18,42 @@ def health() -> dict[str, str]:
         "status": "ok",
         "app_env": settings.app_env,
     }
+
+
+@router.get("/companies", response_model=list[CompanyRead])
+def list_companies(db: Session = Depends(get_db_session)) -> list[CompanyRead]:
+    return CompanyRepository(db).list_companies()
+
+
+@router.post("/companies", response_model=CompanyRead, status_code=201)
+def create_company(payload: CompanyCreate, db: Session = Depends(get_db_session)) -> CompanyRead:
+    repository = CompanyRepository(db)
+    existing = repository.get_by_normalized_alias(normalize_company_name(payload.canonical_name))
+    if existing:
+        raise HTTPException(status_code=409, detail="Company already exists.")
+
+    return repository.create_company(
+        canonical_name=payload.canonical_name,
+        aliases=payload.aliases,
+        legal_name=payload.legal_name,
+        country=payload.country,
+        sector=payload.sector,
+        industry=payload.industry,
+        ticker=payload.ticker,
+        exchange=payload.exchange,
+        website=payload.website,
+    )
+
+
+@router.post("/companies/resolve", response_model=CompanyResolveResponse)
+def resolve_company(payload: CompanyResolveRequest, db: Session = Depends(get_db_session)) -> CompanyResolveResponse:
+    resolver = CompanyResolver(CompanyRepository(db))
+    result = resolver.resolve(payload.query)
+    return CompanyResolveResponse(
+        status=result.status,
+        query=result.query,
+        normalized_query=result.normalized_query,
+        confidence=result.confidence,
+        match=result.match,
+        candidates=result.candidates,
+    )

@@ -4,17 +4,17 @@ Backend/data-pipeline foundation for a company layoff-risk research project.
 
 The long-term system will accept a company name, resolve it to a canonical company, collect KPI data from APIs and public web sources, normalize the collected records, store them in PostgreSQL, and generate reports that can support risk scoring.
 
-This repository is currently at **Step 1: project foundation**. It does not yet include scraping, source integrations, ML, reports, or a user dashboard.
+This repository currently includes the project foundation, initial database schema, and company registry/entity-resolution API. It does not yet include scraping, source integrations, ML, reports, or a user dashboard.
 
 ## Current Architecture
 
 ```text
 app/
   api/             FastAPI routes
-  companies/       Company registry and entity resolution later
+  companies/       Company registry and entity resolution
   config/          Settings and logging
   database/        SQLAlchemy/Neon connection setup
-  models/          Database models later
+  models/          Database models
   normalization/   Data normalization later
   pipeline/        Collection orchestration later
   reports/         HTML/PDF reports later
@@ -124,6 +124,39 @@ python -m alembic current
 ```
 
 The initial schema is documented in [docs/database-schema.md](docs/database-schema.md).
+
+## Seed Pilot Companies
+
+Load the first pilot company registry into Neon:
+
+```powershell
+python scripts/seed_companies.py
+```
+
+This seed is idempotent. Running it again skips companies that already exist.
+
+## Check Company Resolution
+
+Test the company resolver against Neon:
+
+```powershell
+python scripts/check_resolver.py TCS
+python scripts/check_resolver.py "Bundl Technologies"
+python scripts/check_resolver.py "Unknown Startup"
+```
+
+Expected behavior:
+
+- `TCS` resolves to `Tata Consultancy Services`
+- `Bundl Technologies` resolves to `Swiggy`
+- unknown names return `unmatched`
+
+## Current API Endpoints
+
+- `GET /health`
+- `GET /companies`
+- `POST /companies`
+- `POST /companies/resolve`
 
 ## Git Workflow
 
