@@ -2,7 +2,7 @@ import argparse
 
 from app.config.settings import get_settings
 from app.database.session import get_db_session
-from app.pipeline.mca_collection import collect_mca_for_company
+from app.pipeline.mca_collection import McaCollectionError, collect_mca_for_company
 
 
 def main() -> None:
@@ -11,11 +11,16 @@ def main() -> None:
     args = parser.parse_args()
 
     db = next(get_db_session())
-    result = collect_mca_for_company(
-        db=db,
-        query=args.company_name,
-        settings=get_settings(),
-    )
+    try:
+        result = collect_mca_for_company(
+            db=db,
+            query=args.company_name,
+            settings=get_settings(),
+        )
+    except McaCollectionError as exc:
+        print(f"MCA collection failed: {exc}")
+        raise SystemExit(1) from exc
+
     print(result)
 
 

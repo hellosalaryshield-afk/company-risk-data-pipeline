@@ -189,6 +189,14 @@ This stores:
 - extracted counts in `kpi_observations`
 - run status in `collection_runs`
 
+Example local smoke test:
+
+```powershell
+python scripts/collect_news.py TCS --page-size 5
+```
+
+If this succeeds, the response includes `records_stored` and KPI counts.
+
 ## Collect MCA/Data.gov Company Master Data
 
 Add your Data.gov.in API key to `.env`:
@@ -213,6 +221,18 @@ Invoke-RestMethod -Method Post `
 ```
 
 This stores the raw MCA record in `source_records` and updates company identity fields such as CIN, legal name, incorporation date, status, and category when available.
+
+If Swagger returns:
+
+```json
+{
+  "detail": "DATA_GOV_API_KEY is not configured."
+}
+```
+
+check that `DATA_GOV_API_KEY` exists in `.env`, then stop and restart Uvicorn. The app reads environment variables when the server process starts.
+
+If it returns a timeout message, the key is configured but Data.gov.in did not respond within the request timeout. Try again later or test another company.
 
 ## Render Deployment
 

@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -58,9 +59,16 @@ def collect_mca_for_company(
     if raw_record is MISSING_RECORD:
         if not settings.data_gov_api_key:
             raise McaCollectionError("DATA_GOV_API_KEY is not configured.")
-        raw_record = DataGovMcaClient(settings.data_gov_api_key).fetch_company_master_data(
-            resolved.match.legal_name or resolved.match.canonical_name
-        )
+        try:
+            raw_record = DataGovMcaClient(settings.data_gov_api_key).fetch_company_master_data(
+                resolved.match.legal_name or resolved.match.canonical_name
+            )
+        except httpx.TimeoutException as exc:
+            raise McaCollectionError("Data.gov.in MCA API timed out. Try again later or test with another company.") from exc
+        except httpx.HTTPStatusError as exc:
+            raise McaCollectionError(f"Data.gov.in MCA API returned HTTP {exc.response.status_code}.") from exc
+        except httpx.HTTPError as exc:
+            raise McaCollectionError(f"Data.gov.in MCA API request failed: {exc.__class__.__name__}.") from exc
 
     source = get_or_create_mca_source(db)
     run = CollectionRun(
