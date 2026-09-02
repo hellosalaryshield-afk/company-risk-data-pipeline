@@ -22,6 +22,8 @@ def main() -> None:
         raise SystemExit(1) from exc
 
     print(result)
+    if result.get("status") == "source_failed":
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

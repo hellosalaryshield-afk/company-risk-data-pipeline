@@ -1,9 +1,16 @@
 from datetime import date
 
+import httpx
+
+from app.pipeline import mca_collection
 from app.pipeline.mca_collection import collect_mca_for_company
 
 
 class SettingsStub:
+    data_gov_api_key = "test-key"
+
+
+class EmptySettingsStub:
     data_gov_api_key = None
 
 
@@ -23,7 +30,7 @@ def test_collect_mca_for_company_stores_source_record_and_updates_company(db_ses
     result = collect_mca_for_company(
         db=db_session.session,
         query="Razorpay",
-        settings=SettingsStub(),
+        settings=EmptySettingsStub(),
         raw_record=raw_record,
     )
 
@@ -43,10 +50,31 @@ def test_collect_mca_for_company_handles_no_record(db_session):
     result = collect_mca_for_company(
         db=db_session.session,
         query="Razorpay",
-        settings=SettingsStub(),
+        settings=EmptySettingsStub(),
         raw_record=None,
     )
 
     assert result["status"] == "completed"
     assert result["record_found"] is False
     assert result["company"]["id"] == company.id
+
+
+def test_collect_mca_records_source_failure_on_timeout(db_session, monkeypatch):
+    company = db_session.create_company(canonical_name="Paytm", aliases=["One97 Communications"])
+
+    def raise_timeout(self, company_name):
+        raise httpx.ReadTimeout("timeout")
+
+    monkeypatch.setattr(mca_collection.DataGovMcaClient, "fetch_company_master_data", raise_timeout)
+
+    result = collect_mca_for_company(
+        db=db_session.session,
+        query="Paytm",
+        settings=SettingsStub(),
+    )
+
+    assert result["status"] == "source_failed"
+    assert result["company"]["id"] == company.id
+    assert result["record_found"] is False
+    assert result["collection_run_id"] is not None
+    assert "timed out" in result["message"]

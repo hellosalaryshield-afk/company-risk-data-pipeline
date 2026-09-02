@@ -7,7 +7,7 @@ DATA_GOV_MCA_ENDPOINT = "https://api.data.gov.in/resource/4dbe5667-7b6b-41d7-82a
 
 
 class DataGovMcaClient:
-    def __init__(self, api_key: str, timeout_seconds: float = 30.0):
+    def __init__(self, api_key: str, timeout_seconds: float = 8.0):
         self.api_key = api_key
         self.timeout_seconds = timeout_seconds
 

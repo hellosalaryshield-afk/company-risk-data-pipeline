@@ -64,11 +64,29 @@ def collect_mca_for_company(
                 resolved.match.legal_name or resolved.match.canonical_name
             )
         except httpx.TimeoutException as exc:
-            raise McaCollectionError("Data.gov.in MCA API timed out. Try again later or test with another company.") from exc
+            return record_mca_source_failure(
+                db=db,
+                company_id=resolved.match.id,
+                company_name=resolved.match.canonical_name,
+                query=query,
+                error_message="Data.gov.in MCA API timed out. Source is temporarily unavailable.",
+            )
         except httpx.HTTPStatusError as exc:
-            raise McaCollectionError(f"Data.gov.in MCA API returned HTTP {exc.response.status_code}.") from exc
+            return record_mca_source_failure(
+                db=db,
+                company_id=resolved.match.id,
+                company_name=resolved.match.canonical_name,
+                query=query,
+                error_message=f"Data.gov.in MCA API returned HTTP {exc.response.status_code}.",
+            )
         except httpx.HTTPError as exc:
-            raise McaCollectionError(f"Data.gov.in MCA API request failed: {exc.__class__.__name__}.") from exc
+            return record_mca_source_failure(
+                db=db,
+                company_id=resolved.match.id,
+                company_name=resolved.match.canonical_name,
+                query=query,
+                error_message=f"Data.gov.in MCA API request failed: {exc.__class__.__name__}.",
+            )
 
     source = get_or_create_mca_source(db)
     run = CollectionRun(
@@ -130,4 +148,38 @@ def collect_mca_for_company(
         "source": MCA_SOURCE_NAME,
         "record_found": True,
         "mca_record": normalized,
+    }
+
+
+def record_mca_source_failure(
+    db: Session,
+    company_id: int,
+    company_name: str,
+    query: str,
+    error_message: str,
+) -> dict:
+    source = get_or_create_mca_source(db)
+    run = CollectionRun(
+        company_id=company_id,
+        status="failed",
+        completed_at=datetime.now(UTC),
+        error_message=error_message,
+        extra_metadata={
+            "source": MCA_SOURCE_NAME,
+            "query": query,
+            "found": False,
+            "source_status": "unavailable",
+        },
+    )
+    db.add(run)
+    db.commit()
+
+    return {
+        "status": "source_failed",
+        "company": {"id": company_id, "canonical_name": company_name},
+        "collection_run_id": run.id,
+        "source": MCA_SOURCE_NAME,
+        "record_found": False,
+        "mca_record": None,
+        "message": error_message,
     }

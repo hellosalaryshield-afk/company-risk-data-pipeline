@@ -232,7 +232,7 @@ If Swagger returns:
 
 check that `DATA_GOV_API_KEY` exists in `.env`, then stop and restart Uvicorn. The app reads environment variables when the server process starts.
 
-If it returns a timeout message, the key is configured but Data.gov.in did not respond within the request timeout. Try again later or test another company.
+If it returns `status: source_failed`, the key is configured but Data.gov.in did not respond within the request timeout. The failure is recorded in `collection_runs` so the overall pipeline can continue.
 
 ## Render Deployment
 
