@@ -188,6 +188,33 @@ This stores:
 - extracted counts in `kpi_observations`
 - run status in `collection_runs`
 
+## Render Deployment
+
+Use these settings for a Render Web Service:
+
+```text
+Language: Python 3
+Branch: main
+Root Directory: blank
+Build Command: pip install -e .
+Start Command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Set environment variables in Render without quotes:
+
+```text
+APP_ENV=production
+LOG_LEVEL=INFO
+DATABASE_URL=your_neon_database_url
+NEWS_API_KEY=your_newsapi_key
+```
+
+The deployed app should respond at:
+
+```text
+/health
+```
+
 ## Git Workflow
 
 Check changed files:
