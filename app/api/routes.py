@@ -6,6 +6,8 @@ from app.companies.repository import CompanyRepository
 from app.companies.resolver import CompanyResolver
 from app.config.settings import get_settings
 from app.database.session import get_db_session
+from app.pipeline.news_collection import NewsCollectionError, collect_news_for_company
+from app.schemas.collection import NewsCollectionRequest, NewsCollectionResponse
 from app.schemas.company import CompanyCreate, CompanyRead, CompanyResolveRequest, CompanyResolveResponse
 
 router = APIRouter()
@@ -57,3 +59,19 @@ def resolve_company(payload: CompanyResolveRequest, db: Session = Depends(get_db
         match=result.match,
         candidates=result.candidates,
     )
+
+
+@router.post("/collections/news", response_model=NewsCollectionResponse)
+def collect_news(payload: NewsCollectionRequest, db: Session = Depends(get_db_session)) -> NewsCollectionResponse:
+    try:
+        result = collect_news_for_company(
+            db=db,
+            query=payload.company_name,
+            settings=get_settings(),
+            days_back=payload.days_back,
+            page_size=payload.page_size,
+        )
+    except NewsCollectionError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return NewsCollectionResponse(**result)

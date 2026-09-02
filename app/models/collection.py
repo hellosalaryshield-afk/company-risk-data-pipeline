@@ -2,8 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -18,7 +17,7 @@ class CollectionRun(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_message: Mapped[str | None] = mapped_column(Text)
-    extra_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default="{}", nullable=False)
+    extra_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, server_default="{}", nullable=False)
 
     company = relationship("Company", back_populates="collection_runs")
     source_records: Mapped[list["SourceRecord"]] = relationship(back_populates="collection_run")
@@ -39,8 +38,8 @@ class SourceRecord(Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     confidence: Mapped[str | None] = mapped_column(String(40))
-    raw_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    normalized_data: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    raw_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    normalized_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     company = relationship("Company", back_populates="source_records")
     source = relationship("DataSource", back_populates="source_records")
@@ -65,7 +64,7 @@ class KpiObservation(Base):
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     collected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     confidence: Mapped[str | None] = mapped_column(String(40))
-    extra_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, server_default="{}", nullable=False)
+    extra_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, default=dict, server_default="{}", nullable=False)
 
     company = relationship("Company", back_populates="kpi_observations")
     source = relationship("DataSource", back_populates="kpi_observations")

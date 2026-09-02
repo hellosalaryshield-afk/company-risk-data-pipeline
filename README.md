@@ -157,6 +157,36 @@ Expected behavior:
 - `GET /companies`
 - `POST /companies`
 - `POST /companies/resolve`
+- `POST /collections/news`
+
+## Collect NewsAPI Data
+
+Add your NewsAPI key to `.env`:
+
+```text
+NEWS_API_KEY=your_key_here
+```
+
+Collect news for one resolved company:
+
+```powershell
+python scripts/collect_news.py TCS
+```
+
+Or call the API:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/collections/news `
+  -ContentType "application/json" `
+  -Body '{"company_name":"TCS","days_back":30,"page_size":25}'
+```
+
+This stores:
+
+- raw NewsAPI articles in `source_records`
+- extracted counts in `kpi_observations`
+- run status in `collection_runs`
 
 ## Git Workflow
 
