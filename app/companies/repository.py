@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -49,6 +51,10 @@ class CompanyRepository:
         country: str | None = None,
         sector: str | None = None,
         industry: str | None = None,
+        cin: str | None = None,
+        incorporation_date: date | None = None,
+        company_status: str | None = None,
+        company_category: str | None = None,
         ticker: str | None = None,
         exchange: str | None = None,
         website: str | None = None,
@@ -59,6 +65,10 @@ class CompanyRepository:
             country=country,
             sector=sector,
             industry=industry,
+            cin=cin,
+            incorporation_date=incorporation_date,
+            company_status=company_status,
+            company_category=company_category,
             ticker=ticker,
             exchange=exchange,
             website=website,

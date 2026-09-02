@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel, Field
 
 
@@ -15,6 +17,10 @@ class CompanyRead(BaseModel):
     country: str | None = None
     sector: str | None = None
     industry: str | None = None
+    cin: str | None = None
+    incorporation_date: date | None = None
+    company_status: str | None = None
+    company_category: str | None = None
     ticker: str | None = None
     exchange: str | None = None
     website: str | None = None
@@ -30,6 +36,10 @@ class CompanyCreate(BaseModel):
     country: str | None = None
     sector: str | None = None
     industry: str | None = None
+    cin: str | None = None
+    incorporation_date: date | None = None
+    company_status: str | None = None
+    company_category: str | None = None
     ticker: str | None = None
     exchange: str | None = None
     website: str | None = None

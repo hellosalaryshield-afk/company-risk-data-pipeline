@@ -16,6 +16,13 @@ Examples:
 
 This table stores stable company-level metadata such as country, sector, ticker, exchange, and website.
 
+MCA/Data.gov collection can also populate identity fields:
+
+- CIN
+- incorporation date
+- company status
+- company category
+
 ### company_aliases
 
 Name variants that resolve to one canonical company.

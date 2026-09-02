@@ -158,6 +158,7 @@ Expected behavior:
 - `POST /companies`
 - `POST /companies/resolve`
 - `POST /collections/news`
+- `POST /collections/mca`
 
 ## Collect NewsAPI Data
 
@@ -187,6 +188,31 @@ This stores:
 - raw NewsAPI articles in `source_records`
 - extracted counts in `kpi_observations`
 - run status in `collection_runs`
+
+## Collect MCA/Data.gov Company Master Data
+
+Add your Data.gov.in API key to `.env`:
+
+```text
+DATA_GOV_API_KEY=your_key_here
+```
+
+Collect MCA company master data for one resolved company:
+
+```powershell
+python scripts/collect_mca.py Razorpay
+```
+
+Or call the API:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/collections/mca `
+  -ContentType "application/json" `
+  -Body '{"company_name":"Razorpay"}'
+```
+
+This stores the raw MCA record in `source_records` and updates company identity fields such as CIN, legal name, incorporation date, status, and category when available.
 
 ## Render Deployment
 

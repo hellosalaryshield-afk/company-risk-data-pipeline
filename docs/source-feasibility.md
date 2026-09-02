@@ -15,7 +15,7 @@ This document tracks candidate sources from the Colab/client notes. A source is 
 | Source | Candidate KPI | Access | Status | Notes |
 | --- | --- | --- | --- | --- |
 | NewsAPI | layoff news, restructuring news, funding/news events | API key | Implemented first adapter | Stores raw articles and KPI counts. Coverage depends on NewsAPI plan. |
-| Data.gov.in MCA Company Master Data | CIN, legal name, incorporation date, company status | API key | Candidate | Useful for Indian company identity verification. Need validate exact filters and data freshness. |
+| Data.gov.in MCA Company Master Data | CIN, legal name, incorporation date, company status | API key | Implemented adapter | Useful for Indian company identity verification. Exact-name matching can miss aliases. |
 | Screener.in | listed-company financial KPIs | Public website | Investigate | Likely only useful for listed Indian companies. Need confirm scraping terms and page stability. |
 | Apify Glassdoor actor | ratings, review count, job count | Third-party actor/API | Skip for now | Work-culture data is out of current internship scope. Could revisit only if client explicitly asks. |
 | Company careers pages/job boards | job postings | Scraper/API varies | Later | High value but fragmented. Needs source-by-source testing. |

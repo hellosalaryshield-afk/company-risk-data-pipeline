@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     database_url: str | None = None
     news_api_key: str | None = None
+    data_gov_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

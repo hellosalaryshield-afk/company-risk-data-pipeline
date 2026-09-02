@@ -6,9 +6,11 @@ from app.companies.repository import CompanyRepository
 from app.companies.resolver import CompanyResolver
 from app.config.settings import get_settings
 from app.database.session import get_db_session
+from app.pipeline.mca_collection import McaCollectionError, collect_mca_for_company
 from app.pipeline.news_collection import NewsCollectionError, collect_news_for_company
 from app.schemas.collection import NewsCollectionRequest, NewsCollectionResponse
 from app.schemas.company import CompanyCreate, CompanyRead, CompanyResolveRequest, CompanyResolveResponse
+from app.schemas.mca import McaCollectionRequest, McaCollectionResponse
 
 router = APIRouter()
 
@@ -41,6 +43,10 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db_session)
         country=payload.country,
         sector=payload.sector,
         industry=payload.industry,
+        cin=payload.cin,
+        incorporation_date=payload.incorporation_date,
+        company_status=payload.company_status,
+        company_category=payload.company_category,
         ticker=payload.ticker,
         exchange=payload.exchange,
         website=payload.website,
@@ -75,3 +81,17 @@ def collect_news(payload: NewsCollectionRequest, db: Session = Depends(get_db_se
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return NewsCollectionResponse(**result)
+
+
+@router.post("/collections/mca", response_model=McaCollectionResponse)
+def collect_mca(payload: McaCollectionRequest, db: Session = Depends(get_db_session)) -> McaCollectionResponse:
+    try:
+        result = collect_mca_for_company(
+            db=db,
+            query=payload.company_name,
+            settings=get_settings(),
+        )
+    except McaCollectionError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return McaCollectionResponse(**result)

@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -19,6 +19,10 @@ class Company(Base):
     country: Mapped[str | None] = mapped_column(String(80), index=True)
     sector: Mapped[str | None] = mapped_column(String(120), index=True)
     industry: Mapped[str | None] = mapped_column(String(120))
+    cin: Mapped[str | None] = mapped_column(String(40), unique=True, index=True)
+    incorporation_date: Mapped[date | None] = mapped_column(Date)
+    company_status: Mapped[str | None] = mapped_column(String(120))
+    company_category: Mapped[str | None] = mapped_column(String(160))
     ticker: Mapped[str | None] = mapped_column(String(40), index=True)
     exchange: Mapped[str | None] = mapped_column(String(40))
     website: Mapped[str | None] = mapped_column(String(255))

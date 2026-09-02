@@ -1,0 +1,23 @@
+import argparse
+
+from app.config.settings import get_settings
+from app.database.session import get_db_session
+from app.pipeline.mca_collection import collect_mca_for_company
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Collect MCA/Data.gov company master data for one company.")
+    parser.add_argument("company_name", help="Company name or alias, for example Razorpay")
+    args = parser.parse_args()
+
+    db = next(get_db_session())
+    result = collect_mca_for_company(
+        db=db,
+        query=args.company_name,
+        settings=get_settings(),
+    )
+    print(result)
+
+
+if __name__ == "__main__":
+    main()
