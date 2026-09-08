@@ -23,6 +23,13 @@ MCA/Data.gov collection can also populate identity fields:
 - company status
 - company category
 
+Segment classification populates two more fields:
+
+- `company_segment` - one of the six client-defined segments, or `NULL` when it cannot be
+  decided. See [source-feasibility.md](source-feasibility.md) for the catalog.
+- `funding_status` - `funded`, `not_funded`, or `unknown`. Needed to split unlisted
+  companies into funded and non-funded segments.
+
 ### company_aliases
 
 Name variants that resolve to one canonical company.

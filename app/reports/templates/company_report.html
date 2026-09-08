@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Company Signal Report - {{ report.company.canonical_name }}</title>
+<style>
+  /* Deliberately simple CSS: xhtml2pdf supports only a subset of CSS 2.1, so no
+     flexbox or grid. Tables and block layout render identically in browser and PDF. */
+  @page { size: A4; margin: 18mm 14mm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #1a1a1a; line-height: 1.45; }
+  h1 { font-size: 17pt; margin: 0 0 2pt 0; }
+  h2 { font-size: 12pt; margin: 16pt 0 6pt 0; padding-bottom: 3pt; border-bottom: 1px solid #cccccc; }
+  .sub { color: #555555; font-size: 9pt; margin: 0 0 10pt 0; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 6pt; }
+  th, td { text-align: left; padding: 4pt 6pt; border-bottom: 1px solid #e2e2e2; vertical-align: top; }
+  th { background-color: #f2f4f6; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.4pt; }
+  td.num { text-align: right; }
+  .pill { padding: 1pt 5pt; border-radius: 3pt; font-size: 8pt; font-weight: bold; }
+  .ok { background-color: #e3f4e6; color: #1d6b2c; }
+  .warn { background-color: #fdf1dc; color: #8a5a08; }
+  .bad { background-color: #fbe4e4; color: #96201d; }
+  .muted { background-color: #eeeeee; color: #555555; }
+  .banner { border: 1px solid #d9c48a; background-color: #fdf8e8; padding: 8pt; margin-bottom: 12pt; font-size: 9pt; }
+  ul { margin: 4pt 0 4pt 14pt; padding: 0; }
+  li { margin-bottom: 3pt; }
+  .footer { margin-top: 18pt; padding-top: 6pt; border-top: 1px solid #cccccc; font-size: 8pt; color: #666666; }
+</style>
+</head>
+<body>
+
+<h1>{{ report.company.canonical_name }}</h1>
+<p class="sub">
+  Company signal report &middot; generated {{ report.generated_at.strftime("%d %b %Y %H:%M UTC") }}
+  {% if report.company.sector %} &middot; {{ report.company.sector }}{% endif %}
+  {% if report.company.country %} &middot; {{ report.company.country }}{% endif %}
+</p>
+
+<div class="banner">
+  <strong>This is a data collection report, not a risk score.</strong>
+  It shows the signals collected for this company and how complete that data is. The
+  predictive layoff-risk model is a later phase and has not been built yet, so no
+  probability or risk band is claimed here.
+</div>
+
+<h2>Company identity</h2>
+<table>
+  <tr><th style="width:32%">Field</th><th>Value</th></tr>
+  <tr><td>Legal name</td><td>{{ report.company.legal_name or "Not recorded" }}</td></tr>
+  <tr><td>Segment</td><td>
+    {% if report.segment.segment %}<strong>{{ report.segment.segment }}</strong>
+    {% else %}<span class="pill warn">Undetermined</span>{% endif %}
+    <span class="sub">(confidence: {{ report.segment.confidence }})</span>
+  </td></tr>
+  <tr><td>Listing</td><td>{{ report.segment.listing_status }}{% if report.company.ticker %} &middot; {{ report.company.ticker }} on {{ report.company.exchange }}{% endif %}</td></tr>
+  <tr><td>Funding status</td><td>{{ report.segment.funding_status }}</td></tr>
+  <tr><td>CIN</td><td>{{ report.company.cin or "Not collected" }}</td></tr>
+  <tr><td>Website</td><td>{{ report.company.website or "Not recorded" }}</td></tr>
+</table>
+<p class="sub">Classified because: {{ report.segment.reasons | join("; ") }}.</p>
+
+<h2>Data coverage</h2>
+<p>
+  <span class="pill {{ coverage_class }}">{{ report.coverage.band }}</span>
+  {{ report.coverage.ratio * 100 }}% of applicable sources returned data
+  ({{ report.applicable_sources | join(", ") }}).
+</p>
+
+<h2>Collected signals</h2>
+{% if report.kpis %}
+<table>
+  <tr>
+    <th style="width:44%">Signal</th>
+    <th class="num" style="width:18%">Latest</th>
+    <th style="width:14%">Unit</th>
+    <th style="width:12%">Trend</th>
+    <th style="width:12%">Points</th>
+  </tr>
+  {% for kpi in report.kpis %}
+  <tr>
+    <td>{{ kpi.label }}{% if kpi.higher_is_riskier %} <span class="sub">(higher = more risk)</span>{% endif %}</td>
+    <td class="num">{{ "%.2f"|format(kpi.value) if kpi.value is not none else "-" }}</td>
+    <td>{{ kpi.unit or "-" }}</td>
+    <td>
+      {% if kpi.direction == "up" %}&#9650; up
+      {% elif kpi.direction == "down" %}&#9660; down
+      {% elif kpi.direction == "flat" %}flat
+      {% else %}<span class="sub">first reading</span>{% endif %}
+    </td>
+    <td class="num">{{ kpi.observation_count }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="sub">
+  Trend compares the latest observation against the previous one for the same signal. With
+  a single reading no trend is claimed.
+</p>
+{% else %}
+<p>No signals have been collected for this company yet. Run a collection first.</p>
+{% endif %}
+
+<h2>What this shows</h2>
+<ul>
+  {% for note in report.notes %}<li>{{ note }}</li>{% endfor %}
+</ul>
+
+<h2>Source status</h2>
+<table>
+  <tr>
+    <th style="width:34%">Source</th>
+    <th style="width:18%">Last run</th>
+    <th style="width:16%">Status</th>
+    <th class="num" style="width:12%">Records</th>
+    <th style="width:20%">Note</th>
+  </tr>
+  {% for source in report.source_health %}
+  <tr>
+    <td>{{ source.name }}{% if source.name not in report.applicable_sources %} <span class="pill muted">n/a for segment</span>{% endif %}</td>
+    <td>{{ source.last_run_at.strftime("%d %b %Y") if source.last_run_at else "never" }}</td>
+    <td>
+      {% if source.status == "completed" %}<span class="pill ok">completed</span>
+      {% elif source.status == "failed" %}<span class="pill bad">failed</span>
+      {% else %}<span class="pill muted">{{ source.status }}</span>{% endif %}
+    </td>
+    <td class="num">{{ source.records_stored }}</td>
+    <td class="sub">{{ source.error_message or "" }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% if report.macro %}
+<h2>Market and macro context</h2>
+<table>
+  <tr>
+    <th style="width:44%">Indicator</th>
+    <th class="num" style="width:20%">Level</th>
+    <th class="num" style="width:20%">Change over period</th>
+    <th style="width:16%">Type</th>
+  </tr>
+  {% for item in report.macro %}
+  <tr>
+    <td>{{ item.label }}</td>
+    <td class="num">{{ "%.2f"|format(item.value) if item.value is not none else "-" }}</td>
+    <td class="num">{{ "%+.2f%%"|format(item.change_pct_period) if item.change_pct_period is not none else "-" }}</td>
+    <td>{{ item.category }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="sub">Macro and index levels describe the environment, not this company specifically.</p>
+{% endif %}
+
+<div class="footer">
+  Generated by the Company Risk Data Pipeline from publicly available sources. Figures are
+  collected as published and are not revised or audited. No uploaded document is retained.
+  {% if footer_note %}<br /><br />{{ footer_note }}{% endif %}
+</div>
+
+</body>
+</html>

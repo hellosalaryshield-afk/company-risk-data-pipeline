@@ -157,8 +157,17 @@ Expected behavior:
 - `GET /companies`
 - `POST /companies`
 - `POST /companies/resolve`
+- `POST /companies/segment`
 - `POST /collections/news`
 - `POST /collections/mca`
+- `POST /collections/market`
+- `POST /collections/company` - runs every source that applies to the company
+- `POST /collections/macro` - macro and index covariates
+- `GET /sources`
+- `GET /collection-runs`
+- `GET /companies/{id}/summary`
+- `GET /companies/{id}/report` - HTML report
+- `GET /companies/{id}/report.pdf` - PDF report
 
 ## Collect NewsAPI Data
 
@@ -234,6 +243,147 @@ check that `DATA_GOV_API_KEY` exists in `.env`, then stop and restart Uvicorn. T
 
 If it returns `status: source_failed`, the key is configured but Data.gov.in did not respond within the request timeout. The failure is recorded in `collection_runs` so the overall pipeline can continue.
 
+## Classify Company Segments
+
+Every company is classified into one of the six client-defined segments before source
+selection, because no single source covers all six:
+
+```text
+INDIA_LISTED
+INDIA_UNLISTED_FUNDED
+INDIA_UNLISTED_NON_FUNDED
+FOREIGN_LISTED
+FOREIGN_UNLISTED_FUNDED
+FOREIGN_UNLISTED_NON_FUNDED
+```
+
+Listed companies are decided by ticker/exchange. Unlisted companies also need
+`funding_status`; when funding is unknown the segment stays `NULL` instead of being guessed.
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/companies/segment `
+  -ContentType "application/json" `
+  -Body '{"company_name":"TCS"}'
+```
+
+Seeding assigns segments automatically. To push registry corrections such as a changed
+ticker into an already-seeded database:
+
+```powershell
+python scripts/seed_companies.py --update-existing
+```
+
+## Collect Market Data (Yahoo Finance)
+
+This source needs no API key. It covers `INDIA_LISTED` and `FOREIGN_LISTED` companies and
+is not part of the original Colab notebook.
+
+```powershell
+python scripts/collect_market.py TCS --range 6mo
+python scripts/collect_market.py Freshworks
+```
+
+Or call the API:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/collections/market `
+  -ContentType "application/json" `
+  -Body '{"company_name":"TCS","range_period":"6mo","interval":"1d"}'
+```
+
+This stores a price-history record in `source_records` and these KPIs in `kpi_observations`:
+
+- `market_price`
+- `market_price_change_pct_period`
+- `market_drawdown_from_52w_high_pct`
+- `market_premium_over_52w_low_pct`
+- `market_max_drawdown_pct_period`
+- `market_annualized_volatility_pct`
+- `market_trading_volume`
+
+Responses to expect:
+
+- `completed` with `record_found: true` - data stored
+- `completed` with `record_found: false` - the ticker is stale or delisted
+- `not_applicable` - the company is unlisted, so this source does not apply
+- `source_failed` - Yahoo Finance was unreachable; the failure is recorded in `collection_runs`
+
+Source limits are documented in [docs/source-feasibility.md](docs/source-feasibility.md).
+
+## Run The Full Pipeline For One Company
+
+One call resolves the company, classifies its segment, and runs every source that applies
+to that segment. A source that fails or is not configured never stops the others.
+
+```powershell
+python scripts/collect_company.py TCS
+```
+
+Or call the API:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/collections/company `
+  -ContentType "application/json" `
+  -Body '{"company_name":"TCS","days_back":30,"page_size":25,"range_period":"6mo"}'
+```
+
+Source routing by segment is defined in `app/pipeline/source_selection.py`:
+
+| Segment | Sources run |
+| --- | --- |
+| `INDIA_LISTED` | news, MCA, market |
+| `INDIA_UNLISTED_FUNDED` / `INDIA_UNLISTED_NON_FUNDED` | news, MCA |
+| `FOREIGN_LISTED` | news, market |
+| `FOREIGN_UNLISTED_FUNDED` / `FOREIGN_UNLISTED_NON_FUNDED` | news |
+| undetermined | news |
+
+If the typed name is ambiguous the response lists candidates instead of guessing.
+
+## Collect Macro And Industry Covariates
+
+Phase 3 needs industry-level and macro features. These come from the same keyless Yahoo
+endpoint, so they add no new credential or cost:
+
+```powershell
+python scripts/collect_macro.py --range 6mo
+```
+
+Collected indicators: USD/INR, gold, US 13-week T-bill rate, NIFTY 50, NIFTY IT, S&P 500.
+
+These rows are stored with `company_id = NULL` because they describe the environment, not
+one company.
+
+## Generate A Company Report
+
+Company name in, HTML and PDF out.
+
+```powershell
+python scripts/generate_report.py TCS --out-dir reports
+```
+
+Or in the browser:
+
+```text
+http://127.0.0.1:8000/companies/1/report
+http://127.0.0.1:8000/companies/1/report.pdf
+```
+
+The report shows company identity, resolved segment, collected signals with trend
+direction, per-source status, data coverage band, plain-language notes, and macro context.
+
+The report deliberately does **not** print a risk score. The predictive model is a later
+phase, so claiming a probability now would be overclaiming. It reports what was collected
+and how complete that data is.
+
+Add a footer line to every report with:
+
+```text
+REPORT_FOOTER_NOTE=Your contact or service note here.
+```
+
 ## Render Deployment
 
 Use these settings for a Render Web Service:
@@ -253,6 +403,8 @@ APP_ENV=production
 LOG_LEVEL=INFO
 DATABASE_URL=your_neon_database_url
 NEWS_API_KEY=your_newsapi_key
+DATA_GOV_API_KEY=your_data_gov_key
+REPORT_FOOTER_NOTE=your_footer_note
 ```
 
 The deployed app should respond at:

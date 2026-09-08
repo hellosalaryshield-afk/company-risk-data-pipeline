@@ -23,6 +23,8 @@ class Company(Base):
     incorporation_date: Mapped[date | None] = mapped_column(Date)
     company_status: Mapped[str | None] = mapped_column(String(120))
     company_category: Mapped[str | None] = mapped_column(String(160))
+    company_segment: Mapped[str | None] = mapped_column(String(40), index=True)
+    funding_status: Mapped[str | None] = mapped_column(String(20))
     ticker: Mapped[str | None] = mapped_column(String(40), index=True)
     exchange: Mapped[str | None] = mapped_column(String(40))
     website: Mapped[str | None] = mapped_column(String(255))

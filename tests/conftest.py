@@ -14,12 +14,13 @@ from app.models import *  # noqa: F403
 class DatabaseSessionFixture:
     session: Session
 
-    def create_company(self, canonical_name: str, aliases: list[str] | None = None):
+    def create_company(self, canonical_name: str, aliases: list[str] | None = None, **overrides):
+        fields = {"country": "India", "sector": "Test Sector"}
+        fields.update(overrides)
         return CompanyRepository(self.session).create_company(
             canonical_name=canonical_name,
             aliases=aliases or [],
-            country="India",
-            sector="Test Sector",
+            **fields,
         )
 
 

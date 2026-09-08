@@ -21,6 +21,8 @@ class CompanyRead(BaseModel):
     incorporation_date: date | None = None
     company_status: str | None = None
     company_category: str | None = None
+    company_segment: str | None = None
+    funding_status: str | None = None
     ticker: str | None = None
     exchange: str | None = None
     website: str | None = None
@@ -40,6 +42,8 @@ class CompanyCreate(BaseModel):
     incorporation_date: date | None = None
     company_status: str | None = None
     company_category: str | None = None
+    company_segment: str | None = None
+    funding_status: str | None = None
     ticker: str | None = None
     exchange: str | None = None
     website: str | None = None

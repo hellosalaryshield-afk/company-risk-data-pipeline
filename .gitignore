@@ -13,3 +13,6 @@ build/
 .idea/
 .vscode/
 *.log
+.codex/
+.claude/
+/reports/

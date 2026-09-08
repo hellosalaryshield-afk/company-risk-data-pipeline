@@ -82,14 +82,40 @@ The Stitch screens can map to this internal tool:
 
 ## Current Build Order
 
-1. Company registry and entity resolver.
-2. Seed first pilot companies and aliases.
-3. Source adapter interface.
-4. NewsAPI adapter from the Colab prototype.
-5. MCA/Data.gov adapter for Indian company metadata.
-6. Pipeline runner that stores raw records and KPIs.
-7. Simple internal web UI.
-8. HTML/PDF report generation.
+1. Company registry and entity resolver. Done.
+2. Seed first pilot companies and aliases. Done.
+3. Source adapter interface. Done.
+4. NewsAPI adapter from the Colab prototype. Done.
+5. MCA/Data.gov adapter for Indian company metadata. Done, source unstable upstream.
+6. Company segment classification for the six client segments. Done.
+7. Yahoo Finance market adapter for listed companies. Done.
+8. Macro and industry covariates. Done.
+9. Pipeline runner that stores raw records and KPIs. Done (`POST /collections/company`).
+10. HTML/PDF report generation. Done (`GET /companies/{id}/report`).
+11. Simple internal web UI. Not started.
+12. Company-internal covariates such as job postings and hiring trend. Not started.
+
+## Mapping To The Internship Phases
+
+| Phase | Scope | State |
+| --- | --- | --- |
+| 1 - define and validate the target | Layoff proxy definition, confidence flag, validation set | Not started. Needs client input on the target definition. |
+| 2 - data pipeline and entity resolution | Registry, alias mapping, source list, ingestion | Largely done. Registry, resolver, three sources, source list documented. |
+| 3 - lagged covariates | Company-internal, company-external, industry, macro | Partial. Industry and macro done; company-external partly via news. Company-internal (job postings, hiring/attrition) not started. Point-in-time handling not started. |
+| 4 - model, metrics, benchmark | Calibrated probability, walk-forward backtest | Not started. Depends on Phase 1 and 3. |
+| 5 - EPFO feasibility | Payroll releases, establishment portal, access routes | Not started. |
+| 6 - serve and refresh prototype | Name in, score and explanation out | Partial. Name resolution, ambiguity clarification, HTML/PDF output and refresh scripts exist. The score itself waits on Phase 4. |
+
+## Point-In-Time Handling
+
+Phase 3 requires that every feature be usable at prediction time. This is not yet
+implemented and is the largest correctness risk in the current pipeline:
+
+- `source_records.published_at` and `collected_at` are stored, so an as-of filter is
+  possible, but nothing enforces it yet.
+- `kpi_observations` currently records values as of collection time. Recomputing a
+  historical feature vector would need an explicit as-of query.
+- No leakage check has been run, and the brief requires mentor sign-off before modeling.
 
 ## Colab Review Notes
 

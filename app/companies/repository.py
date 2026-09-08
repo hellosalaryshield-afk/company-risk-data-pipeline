@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.companies.normalization import normalize_company_name
+from app.companies.segments import SegmentClassification, classify_company
 from app.models.company import Company, CompanyAlias
 
 
@@ -43,6 +44,46 @@ class CompanyRepository:
         )
         return list(self.db.scalars(statement).unique().all())
 
+    def update_company_profile(self, company: Company, aliases: list[str] | None = None, **fields) -> Company:
+        """Apply registry corrections to an existing company and add any missing aliases."""
+        for name, value in fields.items():
+            if value is not None:
+                setattr(company, name, value)
+
+        existing_aliases = {alias.normalized_alias for alias in company.aliases}
+        for alias in [company.canonical_name, *(aliases or [])]:
+            normalized_alias = normalize_company_name(alias)
+            if not normalized_alias or normalized_alias in existing_aliases:
+                continue
+            existing_aliases.add(normalized_alias)
+            self.db.add(
+                CompanyAlias(
+                    company_id=company.id,
+                    alias=alias.strip(),
+                    normalized_alias=normalized_alias,
+                    source="seed",
+                )
+            )
+
+        self.db.flush()
+        return company
+
+    def classify_segment(self, company: Company) -> SegmentClassification:
+        """Classify a company and persist the resolved segment when one can be decided."""
+        classification = classify_company(
+            country=company.country,
+            ticker=company.ticker,
+            exchange=company.exchange,
+            cin=company.cin,
+            funding_status=company.funding_status,
+        )
+        if classification.segment:
+            company.company_segment = classification.segment
+        if classification.funding_status and not company.funding_status:
+            company.funding_status = classification.funding_status
+        self.db.flush()
+        return classification
+
     def create_company(
         self,
         canonical_name: str,
@@ -55,6 +96,8 @@ class CompanyRepository:
         incorporation_date: date | None = None,
         company_status: str | None = None,
         company_category: str | None = None,
+        company_segment: str | None = None,
+        funding_status: str | None = None,
         ticker: str | None = None,
         exchange: str | None = None,
         website: str | None = None,
@@ -69,6 +112,8 @@ class CompanyRepository:
             incorporation_date=incorporation_date,
             company_status=company_status,
             company_category=company_category,
+            company_segment=company_segment,
+            funding_status=funding_status,
             ticker=ticker,
             exchange=exchange,
             website=website,
