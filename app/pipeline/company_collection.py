@@ -9,15 +9,23 @@ from app.pipeline.market_collection import collect_market_for_company
 from app.pipeline.mca_collection import McaCollectionError, collect_mca_for_company
 from app.pipeline.news_collection import NewsCollectionError, collect_news_for_company
 from app.pipeline.source_selection import (
+    ALL_SOURCES,
     MARKET_SOURCE,
     MCA_SOURCE,
     NEWS_SOURCE,
+    WORKPLACE_SOURCE,
+    is_metered,
+    metered_skip_reason,
     skip_reason,
     sources_for_segment,
 )
+from app.pipeline.workplace_collection import WorkplaceCollectionError, collect_workplace_for_company
 
 # Statuses that mean the source ran and produced usable data.
 SUCCESS_STATUSES = {"completed"}
+
+# Statuses where the source answered but the result was deliberately not used.
+REJECTED_STATUSES = {"match_rejected"}
 
 
 def collect_company_data(
@@ -27,6 +35,7 @@ def collect_company_data(
     days_back: int = 30,
     page_size: int = 25,
     range_period: str = "6mo",
+    include_metered_sources: bool = False,
 ) -> dict:
     """Run every source that applies to one company and return a combined summary.
 
@@ -62,13 +71,23 @@ def collect_company_data(
     started_at = datetime.now(UTC)
     results: list[dict] = []
 
-    for source_name in (NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE):
+    for source_name in ALL_SOURCES:
         if source_name not in selected:
             results.append(
                 {
                     "source": source_name,
                     "status": "skipped",
                     "message": skip_reason(source_name, classification.segment),
+                }
+            )
+            continue
+
+        if is_metered(source_name) and not include_metered_sources:
+            results.append(
+                {
+                    "source": source_name,
+                    "status": "skipped",
+                    "message": metered_skip_reason(source_name),
                 }
             )
             continue
@@ -90,6 +109,7 @@ def collect_company_data(
         merged_kpis.update(result.get("kpis") or {})
 
     succeeded = [r["source"] for r in results if r["status"] in SUCCESS_STATUSES]
+    rejected = [r["source"] for r in results if r["status"] in REJECTED_STATUSES]
     failed = [r["source"] for r in results if r["status"] in {"source_failed", "error"}]
     skipped = [r["source"] for r in results if r["status"] in {"skipped", "not_configured", "not_applicable"}]
 
@@ -118,6 +138,7 @@ def collect_company_data(
         "sources_succeeded": succeeded,
         "sources_failed": failed,
         "sources_skipped": skipped,
+        "sources_match_rejected": rejected,
         "kpis": merged_kpis,
     }
 
@@ -145,9 +166,11 @@ def run_source(
             result = collect_mca_for_company(db=db, query=company_name, settings=settings)
         elif source_name == MARKET_SOURCE:
             result = collect_market_for_company(db=db, query=company_name, range_period=range_period)
+        elif source_name == WORKPLACE_SOURCE:
+            result = collect_workplace_for_company(db=db, query=company_name, settings=settings)
         else:
             return {"source": source_name, "status": "error", "message": f"Unknown source {source_name}."}
-    except (NewsCollectionError, McaCollectionError) as exc:
+    except (NewsCollectionError, McaCollectionError, WorkplaceCollectionError) as exc:
         db.rollback()
         return {"source": source_name, "status": "not_configured", "message": str(exc)}
     except Exception as exc:  # noqa: BLE001 - one bad source must not stop the rest
@@ -164,6 +187,7 @@ def run_source(
         "collection_run_id": result.get("collection_run_id"),
         "records_stored": result.get("records_stored"),
         "record_found": result.get("record_found"),
+        "match_confidence": result.get("match_confidence"),
         "message": result.get("message"),
         "kpis": result.get("kpis") or {},
     }

@@ -93,7 +93,10 @@ The Stitch screens can map to this internal tool:
 9. Pipeline runner that stores raw records and KPIs. Done (`POST /collections/company`).
 10. HTML/PDF report generation. Done (`GET /companies/{id}/report`).
 11. Simple internal web UI. Not started.
-12. Company-internal covariates such as job postings and hiring trend. Not started.
+12. Glassdoor workplace ratings and open job count. Done.
+13. Full KPI/source matrix against the client sheet. Done (`docs/kpi-source-matrix.csv`).
+14. GDELT news and sentiment. Not started, recommended next.
+15. Point-in-time / as-of feature querying. Not started, largest correctness risk.
 
 ## Mapping To The Internship Phases
 
@@ -125,7 +128,8 @@ Issues to fix while productionizing:
 
 - API keys must move to `.env`.
 - Notebook fallback fake values should not be treated as verified data.
-- Work-culture ratings such as Glassdoor/AmbitionBox are out of current internship scope unless the client explicitly re-adds them.
+- Work-culture ratings were out of scope until 2026-09-09, when the client explicitly re-added
+  Glassdoor. Now implemented via the Apify actor; AmbitionBox is still not covered.
 - Sentiment scoring direction must be checked carefully; distress should be negative or positive consistently.
 - Unit tests should use mocked API responses instead of consuming real API quota.
 - Raw API responses should be stored before feature extraction.

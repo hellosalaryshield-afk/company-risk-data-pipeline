@@ -38,7 +38,7 @@ rather than guessed, so the gap stays visible.
 | Yahoo Finance chart API (`/v8/finance/chart`) | price, 52-week drawdown, volatility, max drawdown, volume | **No key** | Implemented and smoke-tested | Not present in the Colab notebook. Covers `INDIA_LISTED` and `FOREIGN_LISTED`. |
 | Yahoo Finance chart (indices/FX/commodities) | USD/INR, gold, US T-bill rate, NIFTY 50, NIFTY IT, S&P 500 | **No key** | Implemented and smoke-tested | Covers the Phase 3 industry-level and macro covariate families from the endpoint already in use. Stored with `company_id = NULL`. |
 | Screener.in | listed-company financial KPIs | Public website | Investigate | Listed Indian companies only. Need to confirm scraping terms and page stability. |
-| Apify Glassdoor actor | ratings, review count, job count | Third-party actor/API | Skip for now | Work-culture data is out of current internship scope. |
+| Apify Glassdoor actor (`burbn/glassdoor-company-search`) | 10 workplace ratings, review/salary volume, **open job count** | API token, **billed ~$0.10/company** | Implemented and smoke-tested | Re-added to scope by the client on 2026-09-09. Job count also partly covers the Hiring row. Matches are identity-checked before use. |
 | Company careers pages/job boards | job postings | Scraper/API varies | Later | High value but fragmented. Needs source-by-source testing. |
 | Funding/news databases | funding events | API/scraper varies | Later | Need client-provided API keys or approved data source. |
 
@@ -123,3 +123,52 @@ both listed segments.
 - Do not store API keys in notebooks or source code.
 - Do not build ML scores before the source pipeline and target definition are stable.
 - Do not build on Yahoo `quoteSummary`; it is crumb-gated and returns 401.
+- Do not run the Glassdoor actor across the whole pilot universe without a budget decision.
+
+## Glassdoor / Apify Adapter
+
+Added because the client explicitly re-added work-culture data to scope on 2026-09-09.
+Glassdoor closed its own public API in 2024, so a third-party actor is the only route.
+
+### Cost, measured
+
+| Item | Value |
+| --- | --- |
+| Billing model | Pay per event (actor start + result) |
+| Measured cost | **$0.10 per company per run** |
+| Account plan | Apify FREE, $5/month credit |
+| Companies per month on that credit | **~50** |
+| Cost for a 500-company refresh | **~$50** |
+
+The pilot universe is 200-500 companies, so a single full refresh exceeds the free tier by
+roughly 10x. For that reason the actor is marked **metered** in `source_selection.py` and is
+skipped by default; `POST /collections/company` runs it only when `include_metered_sources`
+is true. The estimated cost of every run is written to `collection_runs.metadata`.
+
+### Identity guard
+
+The actor returns its top search hit with no verification. A live query for `Zepto` returned
+**`Zepto (Mexico)`** with one review, a completely different company. Every result is therefore
+scored by `match_confidence()`:
+
+| Case | Result | Confidence |
+| --- | --- | --- |
+| `ZS Associates` -> `ZS Associates` | exact | high |
+| `Infosys` -> `Infosys Limited` | legal suffix only | high |
+| `Tata Consultancy Services` -> `Tata Consultancy` | shortened name | medium |
+| `Zepto` -> `Zepto (Mexico)` | extra qualifier | **low, rejected** |
+| `Swiggy` -> `Swiggy Instamart` | different brand | **low, rejected** |
+| `Razorpay` -> `Stripe` | unrelated | **low, rejected** |
+
+A low-confidence result is still stored in `source_records` for audit, but never becomes a
+`kpi_observation` and never updates the company row. Status comes back as `match_rejected`.
+
+### Limitations
+
+- Point-in-time only. No review dates, so **velocity and recency cannot be computed** from a
+  single call; they need repeated collection over months.
+- Headcount is a coarse band (`"501 to 1000 Employees"`), not a number and not a trend.
+- AmbitionBox's explicit **job-security sub-score has no Glassdoor equivalent** and is not covered.
+- Ratings are lower-is-riskier, the inverse of the market drawdown KPIs. The direction is
+  recorded in `workplace_signals.LOWER_IS_RISKIER` rather than left implicit.
+

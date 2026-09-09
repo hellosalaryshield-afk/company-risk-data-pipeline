@@ -8,13 +8,16 @@ from app.pipeline.source_selection import (
     MARKET_SOURCE,
     MCA_SOURCE,
     NEWS_SOURCE,
+    WORKPLACE_SOURCE,
+    is_metered,
+    metered_skip_reason,
     skip_reason,
     sources_for_segment,
 )
 
 
-def test_india_listed_gets_all_three_sources():
-    assert set(sources_for_segment(INDIA_LISTED)) == {NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE}
+def test_india_listed_gets_every_source():
+    assert set(sources_for_segment(INDIA_LISTED)) == {NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, WORKPLACE_SOURCE}
 
 
 def test_india_unlisted_skips_market_data():
@@ -31,16 +34,36 @@ def test_foreign_listed_skips_mca():
     assert MARKET_SOURCE in sources
 
 
-def test_foreign_unlisted_only_gets_news():
-    assert sources_for_segment(FOREIGN_UNLISTED_NON_FUNDED) == (NEWS_SOURCE,)
+def test_foreign_unlisted_gets_news_and_workplace():
+    assert set(sources_for_segment(FOREIGN_UNLISTED_NON_FUNDED)) == {NEWS_SOURCE, WORKPLACE_SOURCE}
 
 
-def test_undetermined_segment_falls_back_to_news_only():
-    assert sources_for_segment(None) == (NEWS_SOURCE,)
+def test_undetermined_segment_falls_back_to_name_only_sources():
+    assert set(sources_for_segment(None)) == {NEWS_SOURCE, WORKPLACE_SOURCE}
 
 
-def test_unknown_segment_falls_back_to_news_only():
-    assert sources_for_segment("SOMETHING_ELSE") == (NEWS_SOURCE,)
+def test_unknown_segment_falls_back_to_name_only_sources():
+    assert set(sources_for_segment("SOMETHING_ELSE")) == {NEWS_SOURCE, WORKPLACE_SOURCE}
+
+
+def test_metered_sources_are_excluded_when_not_requested():
+    without = sources_for_segment(INDIA_LISTED, include_metered=False)
+
+    assert WORKPLACE_SOURCE not in without
+    assert set(without) == {NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE}
+
+
+def test_only_the_glassdoor_actor_is_metered():
+    assert is_metered(WORKPLACE_SOURCE) is True
+    assert is_metered(NEWS_SOURCE) is False
+    assert is_metered(MARKET_SOURCE) is False
+
+
+def test_metered_skip_reason_explains_the_opt_in():
+    reason = metered_skip_reason(WORKPLACE_SOURCE)
+
+    assert "billed per call" in reason
+    assert "include_metered_sources" in reason
 
 
 def test_skip_reason_names_the_segment():

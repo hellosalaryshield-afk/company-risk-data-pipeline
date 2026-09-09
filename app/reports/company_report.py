@@ -10,6 +10,7 @@ from app.models.company import Company
 from app.models.source import DataSource
 from app.pipeline.macro_collection import MACRO_RECORD_TYPE, latest_macro_snapshot
 from app.pipeline.source_selection import sources_for_segment
+from app.sources.workplace_signals import LOWER_IS_RISKIER
 
 # Human-readable labels so the report never shows a bare column name.
 KPI_LABELS = {
@@ -25,6 +26,19 @@ KPI_LABELS = {
     "market_max_drawdown_pct_period": "Worst drawdown in period",
     "market_annualized_volatility_pct": "Annualised volatility",
     "market_trading_volume": "Trading volume",
+    "glassdoor_rating": "Glassdoor overall rating",
+    "glassdoor_review_count": "Glassdoor review count",
+    "glassdoor_salary_count": "Glassdoor salary reports",
+    "glassdoor_job_count": "Open job postings",
+    "glassdoor_work_life_balance_rating": "Work-life balance rating",
+    "glassdoor_career_opportunities_rating": "Career opportunities rating",
+    "glassdoor_compensation_rating": "Compensation rating",
+    "glassdoor_culture_values_rating": "Culture and values rating",
+    "glassdoor_diversity_rating": "Diversity and inclusion rating",
+    "glassdoor_senior_management_rating": "Senior management rating",
+    "glassdoor_business_outlook_rating": "Positive business outlook",
+    "glassdoor_ceo_rating": "CEO approval",
+    "glassdoor_recommend_to_friend_rating": "Would recommend to a friend",
 }
 
 # KPIs where a higher value means more layoff risk, used only to word the plain-language
@@ -92,6 +106,7 @@ def latest_kpis(db: Session, company_id: int) -> list[dict]:
                 "observed_at": observed_at,
                 "observation_count": len(entries),
                 "higher_is_riskier": name in HIGHER_IS_RISKIER,
+                "lower_is_riskier": name in LOWER_IS_RISKIER,
             }
         )
 
@@ -181,6 +196,22 @@ def plain_language_notes(company: Company, segment: str | None, kpis: list[dict]
             )
         else:
             notes.append(f"None of the {int(articles['value'])} recent articles mention layoffs or job cuts.")
+
+    jobs = by_name.get("glassdoor_job_count")
+    if jobs and jobs["value"] is not None:
+        if jobs["direction"] == "down":
+            notes.append(
+                f"Open job postings fell to {int(jobs['value'])} from {int(jobs['previous_value'])} "
+                "since the previous collection, which is a slowdown in hiring."
+            )
+        else:
+            notes.append(f"{int(jobs['value'])} open job postings were listed at collection time.")
+
+    outlook = by_name.get("glassdoor_business_outlook_rating")
+    if outlook and outlook["value"] is not None:
+        notes.append(
+            f"{outlook['value'] * 100:.0f}% of reviewers report a positive business outlook."
+        )
 
     if segment is None:
         notes.append(

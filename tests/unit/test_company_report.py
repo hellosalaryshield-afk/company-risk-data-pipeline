@@ -76,7 +76,12 @@ def test_build_company_report_for_a_listed_company(db_session):
     report = build_company_report(db_session.session, company)
 
     assert report["segment"]["segment"] == "INDIA_LISTED"
-    assert set(report["applicable_sources"]) == {"newsapi", "data_gov_mca_company_master", "yahoo_finance_chart"}
+    assert set(report["applicable_sources"]) == {
+        "newsapi",
+        "data_gov_mca_company_master",
+        "yahoo_finance_chart",
+        "apify_glassdoor_company_search",
+    }
     assert len(report["kpis"]) == 2
     assert any("32.7% below its 52-week high" in note for note in report["notes"])
     assert report["macro"] == []

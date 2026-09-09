@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     news_api_key: str | None = None
     data_gov_api_key: str | None = None
     report_footer_note: str | None = None
+    apify_token: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

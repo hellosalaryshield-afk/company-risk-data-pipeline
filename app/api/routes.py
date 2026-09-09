@@ -24,6 +24,7 @@ from app.schemas.market import (
     MarketCollectionResponse,
 )
 from app.schemas.mca import McaCollectionRequest, McaCollectionResponse
+from app.schemas.workplace import WorkplaceCollectionRequest, WorkplaceCollectionResponse
 from app.schemas.pipeline import (
     CollectionRunRead,
     CompanyCollectionRequest,
@@ -33,6 +34,7 @@ from app.schemas.pipeline import (
     MacroCollectionRequest,
     MacroCollectionResponse,
 )
+from app.pipeline.workplace_collection import WorkplaceCollectionError, collect_workplace_for_company
 from app.reports.company_report import build_company_report
 from app.reports.renderer import render_company_report_html, render_company_report_pdf
 
@@ -173,6 +175,7 @@ def collect_company(payload: CompanyCollectionRequest, db: Session = Depends(get
         days_back=payload.days_back,
         page_size=payload.page_size,
         range_period=payload.range_period,
+        include_metered_sources=payload.include_metered_sources,
     )
     return CompanyCollectionResponse(**result)
 
@@ -237,3 +240,21 @@ def company_report_pdf(company_id: int, db: Session = Depends(get_db_session)) -
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="{filename}_signal_report.pdf"'},
     )
+
+
+@router.post("/collections/workplace", response_model=WorkplaceCollectionResponse)
+def collect_workplace(
+    payload: WorkplaceCollectionRequest, db: Session = Depends(get_db_session)
+) -> WorkplaceCollectionResponse:
+    """Collect Glassdoor workplace ratings and open job count. Billed per call."""
+    try:
+        result = collect_workplace_for_company(
+            db=db,
+            query=payload.company_name,
+            settings=get_settings(),
+            domain=payload.domain,
+        )
+    except WorkplaceCollectionError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return WorkplaceCollectionResponse(**result)

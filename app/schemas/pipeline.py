@@ -8,6 +8,10 @@ class CompanyCollectionRequest(BaseModel):
     days_back: int = Field(default=30, ge=1, le=30)
     page_size: int = Field(default=25, ge=1, le=100)
     range_period: str = Field(default="6mo", pattern=r"^(5d|1mo|3mo|6mo|1y|2y|5y|max)$")
+    include_metered_sources: bool = Field(
+        default=False,
+        description="Run sources that are billed per call, such as the Apify Glassdoor actor.",
+    )
 
 
 class SourceOutcome(BaseModel):
@@ -16,6 +20,7 @@ class SourceOutcome(BaseModel):
     collection_run_id: int | None = None
     records_stored: int | None = None
     record_found: bool | None = None
+    match_confidence: str | None = None
     message: str | None = None
     kpis: dict[str, float] = {}
 
@@ -34,6 +39,7 @@ class CompanyCollectionResponse(BaseModel):
     sources_succeeded: list[str] = []
     sources_failed: list[str] = []
     sources_skipped: list[str] = []
+    sources_match_rejected: list[str] = []
     kpis: dict[str, float] = {}
 
 

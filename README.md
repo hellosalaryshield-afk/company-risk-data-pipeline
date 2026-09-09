@@ -163,6 +163,7 @@ Expected behavior:
 - `POST /collections/market`
 - `POST /collections/company` - runs every source that applies to the company
 - `POST /collections/macro` - macro and index covariates
+- `POST /collections/workplace` - Glassdoor ratings and open job count (billed per call)
 - `GET /sources`
 - `GET /collection-runs`
 - `GET /companies/{id}/summary`
@@ -334,11 +335,14 @@ Source routing by segment is defined in `app/pipeline/source_selection.py`:
 
 | Segment | Sources run |
 | --- | --- |
-| `INDIA_LISTED` | news, MCA, market |
-| `INDIA_UNLISTED_FUNDED` / `INDIA_UNLISTED_NON_FUNDED` | news, MCA |
-| `FOREIGN_LISTED` | news, market |
-| `FOREIGN_UNLISTED_FUNDED` / `FOREIGN_UNLISTED_NON_FUNDED` | news |
-| undetermined | news |
+| `INDIA_LISTED` | news, MCA, market, workplace* |
+| `INDIA_UNLISTED_FUNDED` / `INDIA_UNLISTED_NON_FUNDED` | news, MCA, workplace* |
+| `FOREIGN_LISTED` | news, market, workplace* |
+| `FOREIGN_UNLISTED_FUNDED` / `FOREIGN_UNLISTED_NON_FUNDED` | news, workplace* |
+| undetermined | news, workplace* |
+
+`*` The Glassdoor actor is **billed about $0.10 per company**, so it is skipped by default.
+Pass `"include_metered_sources": true` to run it.
 
 If the typed name is ambiguous the response lists candidates instead of guessing.
 
@@ -355,6 +359,29 @@ Collected indicators: USD/INR, gold, US 13-week T-bill rate, NIFTY 50, NIFTY IT,
 
 These rows are stored with `company_id = NULL` because they describe the environment, not
 one company.
+
+## Collect Glassdoor Workplace Data
+
+Glassdoor closed its public API in 2024, so this goes through an Apify actor. Add the token:
+
+```text
+APIFY_TOKEN=your_apify_token
+```
+
+```powershell
+python scripts/collect_workplace.py "Tata Consultancy Services"
+```
+
+This stores 13 KPIs including overall rating, work-life balance, senior management, positive
+business outlook, and **open job count** - which is also the hiring signal Phase 3 needs.
+
+**Cost:** about $0.10 per company per run. An Apify FREE plan carries $5/month, so roughly
+50 companies. A 500-company refresh costs about $50. The actor is therefore skipped by
+default in `POST /collections/company`.
+
+**Identity guard:** the actor returns its top search hit without verifying it. A live query for
+`Zepto` returned `Zepto (Mexico)`. Every result is name-checked; a weak match is stored for
+audit, returned as `match_rejected`, and never becomes a KPI.
 
 ## Generate A Company Report
 
@@ -404,6 +431,7 @@ LOG_LEVEL=INFO
 DATABASE_URL=your_neon_database_url
 NEWS_API_KEY=your_newsapi_key
 DATA_GOV_API_KEY=your_data_gov_key
+APIFY_TOKEN=your_apify_token
 REPORT_FOOTER_NOTE=your_footer_note
 ```
 

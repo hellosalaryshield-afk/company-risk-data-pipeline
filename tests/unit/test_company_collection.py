@@ -70,7 +70,11 @@ def test_undetermined_segment_runs_news_only(db_session, stub_sources):
 
     assert stub_sources == ["news"]
     assert result["segment"]["segment"] is None
-    assert set(result["sources_skipped"]) == {"data_gov_mca_company_master", "yahoo_finance_chart"}
+    assert set(result["sources_skipped"]) == {
+        "data_gov_mca_company_master",
+        "yahoo_finance_chart",
+        "apify_glassdoor_company_search",
+    }
 
 
 def test_unresolved_company_returns_candidates_without_running_sources(db_session, stub_sources):
