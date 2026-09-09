@@ -86,10 +86,25 @@ def test_a_window_running_past_the_date_is_flagged():
     assert any("window extends past" in issue for issue in observation.issues)
 
 
-def test_backfill_from_a_non_revising_source_is_recorded_but_not_fatal_in_kind():
+def test_backfill_from_a_non_revising_source_is_a_warning_not_a_blocker():
+    """Every value we hold was collected after any past date.
+
+    If backfill alone disqualified a value, every historical feature vector would be empty
+    and backtesting would be impossible. For a source that never restates, today's copy is
+    what would have been seen then, so it is recorded as a warning and still usable.
+    """
     observation = evaluate(collected_at=AFTER)
 
-    assert any("does not revise" in issue for issue in observation.issues)
+    assert observation.point_in_time_safe is True
+    assert observation.issues == []
+    assert any("does not revise" in warning for warning in observation.warnings)
+    assert observation.backfilled_at_as_of is True
+
+
+def test_a_backfilled_value_is_still_marked_as_backfilled_in_provenance():
+    observation = evaluate(collected_at=AFTER)
+
+    assert observation.backfilled_at_as_of is True
 
 
 def test_backfill_from_a_revising_source_is_called_out_separately():

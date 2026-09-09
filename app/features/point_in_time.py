@@ -42,13 +42,21 @@ class AsOfObservation:
     period_start: datetime | None
     period_end: datetime | None
     issues: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def backfilled_at_as_of(self) -> bool:
-        return any(issue.startswith("backfilled") for issue in self.issues)
+        return any("backfilled" in note for note in self.issues + self.warnings)
 
     @property
     def point_in_time_safe(self) -> bool:
+        """Only blocking issues make a value unusable.
+
+        Backfill from a source that never revises is recorded as a warning, not an issue.
+        Every value this pipeline holds was collected after any past prediction date, so
+        treating backfill itself as disqualifying would empty every historical vector and
+        make backtesting impossible.
+        """
         return not self.issues
 
     def knowledge_lag_days(self) -> int | None:
@@ -69,6 +77,7 @@ def evaluate_observation(
 ) -> AsOfObservation:
     """Decide whether one stored value could honestly have been used at `as_of`."""
     issues: list[str] = []
+    warnings: list[str] = []
 
     if published_at is None:
         issues.append("no publication date recorded, so it cannot be verified as known at the prediction date")
@@ -82,9 +91,10 @@ def evaluate_observation(
         if source_name in REVISING_SOURCES:
             issues.append("backfilled from a source that revises earlier figures")
         else:
-            # Not a leak on its own: the value was published before the prediction date and
-            # this source does not restate. Recorded so a reviewer can see it was backfilled.
-            issues.append("backfilled after the prediction date (source does not revise)")
+            # Not a leak: the value was published before the prediction date and this source
+            # does not restate, so today's copy is what would have been seen then. Recorded
+            # as a warning so a reviewer can still see it was backfilled.
+            warnings.append("backfilled after the prediction date (source does not revise)")
 
     if source_name in UNDATED_SOURCES:
         issues.append("source returns an undated snapshot")
@@ -98,6 +108,7 @@ def evaluate_observation(
         period_start=period_start,
         period_end=period_end,
         issues=issues,
+        warnings=warnings,
     )
 
 
@@ -192,7 +203,9 @@ def feature_vector_as_of(
                 "source": obs.source_name,
                 "published_at": obs.published_at.isoformat() if obs.published_at else None,
                 "knowledge_lag_days": obs.knowledge_lag_days(),
+                "backfilled": obs.backfilled_at_as_of,
                 "issues": obs.issues,
+                "warnings": obs.warnings,
             }
             for obs in included
         ],
