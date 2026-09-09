@@ -38,6 +38,7 @@ rather than guessed, so the gap stays visible.
 | Yahoo Finance chart API (`/v8/finance/chart`) | price, 52-week drawdown, volatility, max drawdown, volume | **No key** | Implemented and smoke-tested | Not present in the Colab notebook. Covers `INDIA_LISTED` and `FOREIGN_LISTED`. |
 | Yahoo Finance chart (indices/FX/commodities) | USD/INR, gold, US T-bill rate, NIFTY 50, NIFTY IT, S&P 500 | **No key** | Implemented and smoke-tested | Covers the Phase 3 industry-level and macro covariate families from the endpoint already in use. Stored with `company_id = NULL`. |
 | GDELT DOC 2.0 (`api.gdeltproject.org`) | news tone/sentiment, coverage volume, article list | **No key** | Implemented and smoke-tested | Not in the Colab notebook. Free and, unlike the NewsAPI developer tier, carries no restriction on production use. Rate limited to ~1 request/5s, so it runs as a scheduled batch. |
+| NSE bulk & block deals (`nsearchives.nseindia.com`) | large-lot buy/sell volume, net quantity, sell share, counterparty count | **No key** | Implemented and smoke-tested | Not in the Colab notebook. Daily CSV, one trading day per file, so it must run daily. NSE-listed only, matched by ticker. Requires a browser user agent. |
 | Screener.in | listed-company financial KPIs | Public website | Investigate | Listed Indian companies only. Need to confirm scraping terms and page stability. |
 | Apify Glassdoor actor (`burbn/glassdoor-company-search`) | 10 workplace ratings, review/salary volume, **open job count** | API token, **billed ~$0.10/company** | Implemented and smoke-tested | Re-added to scope by the client on 2026-09-09. Job count also partly covers the Hiring row. Matches are identity-checked before use. |
 | Company careers pages/job boards | job postings | Scraper/API varies | Later | High value but fragmented. Needs source-by-source testing. |
@@ -136,6 +137,41 @@ Limitations, all measured on 2026-09-09:
 - **Name ambiguity.** Tone is computed over all global coverage matching the company name, so
   a common name pulls in unrelated articles. Distinctive names are far more reliable.
 - No authentication, no account, no published quota beyond the pacing request.
+
+
+## NSE Bulk And Block Deals Adapter
+
+Large institutional or promoter selling is a distress signal that costs nothing to collect.
+NSE publishes both files as plain CSV with no key and no account.
+
+Verified live on 2026-09-09: 193 deals across 47 symbols. Largest net seller was DAVANGERE at
+-42,459,747 shares with 70.3% of its large-lot volume sold.
+
+KPIs written to `kpi_observations`:
+
+| KPI | Unit | Direction | Meaning |
+| --- | --- | --- | --- |
+| `deal_count` | count | informational | Large-lot deals disclosed that day |
+| `deal_buy_quantity` | shares | informational | Shares bought in large lots |
+| `deal_sell_quantity` | shares | informational | Shares sold in large lots |
+| `deal_net_quantity` | shares | lower is worse | Buy minus sell; negative means net selling |
+| `deal_sell_share_pct` | percent | **higher is worse** | Share of large-lot volume that was sold |
+| `deal_distinct_clients` | count | informational | Distinct counterparties |
+
+Limitations:
+
+- **One trading day per file.** History exists only if `scripts/collect_deals.py` runs every
+  trading day. A single run gives a single day and nothing more.
+- **NSE-listed only.** Matching is by ticker against the NSE symbol, so a BSE-only or foreign
+  listing is never covered. A non-NSE ticker is deliberately not matched, because it could
+  collide with an unrelated NSE symbol.
+- **NSE refuses unfamiliar clients**, so a browser user agent is required.
+- An empty day is published as a single `NO RECORDS` row rather than an empty file.
+- Most days most companies have no large-lot deals at all. Zero matches is a normal result,
+  not a failure.
+
+Point-in-time: dated from the deal day, which is the disclosure date, so this source is
+backtest-safe.
 
 ## Segment Coverage Today
 

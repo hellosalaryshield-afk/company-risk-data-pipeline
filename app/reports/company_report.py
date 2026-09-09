@@ -35,6 +35,12 @@ KPI_LABELS = {
     "gdelt_volume_spike_ratio": "Coverage spike vs. its own average",
     "gdelt_article_count": "GDELT articles sampled",
     "gdelt_tone_days": "Days of tone data",
+    "deal_count": "Large-lot deals disclosed",
+    "deal_buy_quantity": "Shares bought in large lots",
+    "deal_sell_quantity": "Shares sold in large lots",
+    "deal_net_quantity": "Net large-lot shares (buy minus sell)",
+    "deal_sell_share_pct": "Share of large-lot volume that was sold",
+    "deal_distinct_clients": "Distinct large-lot counterparties",
     "glassdoor_rating": "Glassdoor overall rating",
     "glassdoor_review_count": "Glassdoor review count",
     "glassdoor_salary_count": "Glassdoor salary reports",
@@ -62,6 +68,7 @@ HIGHER_IS_RISKIER = {
     "gdelt_negative_day_pct",
     "gdelt_tone_decline",
     "gdelt_volume_spike_ratio",
+    "deal_sell_share_pct",
 }
 
 COVERAGE_BANDS = (

@@ -453,6 +453,20 @@ It exits 2 if any row has impossible timestamps. Two known issues it currently r
 Glassdoor ratings carry no publication date and so cannot enter a backtest, and legacy news
 rows written before the timestamp fix need `python scripts/repair_timestamps.py --apply`.
 
+## Collect NSE Bulk And Block Deals
+
+Large institutional or promoter selling, free and with no API key:
+
+```powershell
+python scripts/collect_deals.py
+```
+
+**Each NSE file covers a single trading day**, so this must run daily to build any history.
+It is market-wide: the file is fetched once and attached to every registry company whose NSE
+ticker appears in it. Most days most companies will not appear, which is normal.
+
+Add it to the daily job list alongside `refresh_all.py --skip-slow`.
+
 ## Refresh Everything (Documented Refresh Process)
 
 One command refreshes macro context and every company in the registry:
@@ -475,6 +489,7 @@ Recommended cadence while the pilot is running:
 | Job | Command | Frequency |
 | --- | --- | --- |
 | Everything except GDELT | `refresh_all.py --skip-slow` | daily |
+| NSE bulk/block deals | `collect_deals.py` | **every trading day** (one day per file) |
 | GDELT tone | `collect_gdelt_batch.py` | nightly, it is slow |
 | Glassdoor | `refresh_all.py --include-metered` | monthly, it is billed per call |
 
