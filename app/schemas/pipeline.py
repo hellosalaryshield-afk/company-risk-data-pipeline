@@ -96,6 +96,7 @@ class CompanySummaryResponse(BaseModel):
     applicable_sources: list[str] = []
     coverage: dict
     kpis: list[dict] = []
+    peer_context: dict = {}
     source_health: list[dict] = []
     macro: list[dict] = []
     notes: list[str] = []

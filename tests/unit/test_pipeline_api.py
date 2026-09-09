@@ -122,3 +122,34 @@ def test_report_endpoints_return_404_for_unknown_company(client):
     assert client.get("/companies/9999/summary").status_code == 404
     assert client.get("/companies/9999/report").status_code == 404
     assert client.get("/companies/9999/report.pdf").status_code == 404
+
+
+def test_summary_endpoint_exposes_the_cohort_fallback(client, db_session):
+    """The fallback must reach API consumers, not only the rendered PDF."""
+    from decimal import Decimal
+    from app.models.collection import KpiObservation
+    from app.models.source import DataSource
+
+    source = DataSource(name="yahoo_finance_chart", source_type="api", requires_auth=False)
+    db_session.session.add(source)
+    db_session.session.flush()
+
+    subject = db_session.create_company(canonical_name="Infosys", aliases=["INFY"], ticker="INFY", exchange="NSE")
+    for name, value in [("Wipro", 10.0), ("HCLTech", 20.0)]:
+        peer = db_session.create_company(canonical_name=name, aliases=[f"{name} Ltd"], ticker=name[:6], exchange="NSE")
+        db_session.session.add(
+            KpiObservation(
+                company_id=peer.id,
+                source_id=source.id,
+                kpi_name="market_price",
+                value_numeric=Decimal(str(value)),
+                unit="INR",
+            )
+        )
+    db_session.session.commit()
+
+    body = client.get(f"/companies/{subject.id}/summary").json()
+
+    assert body["kpis"] == []
+    assert body["peer_context"]["estimates"]
+    assert body["peer_context"]["peer_count"] == 2
