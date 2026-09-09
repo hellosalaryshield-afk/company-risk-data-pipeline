@@ -163,6 +163,7 @@ Expected behavior:
 - `POST /collections/market`
 - `POST /collections/company` - runs every source that applies to the company
 - `POST /collections/macro` - macro and index covariates
+- `POST /collections/gdelt` - news tone and coverage volume, no API key
 - `POST /collections/workplace` - Glassdoor ratings and open job count (billed per call)
 - `GET /sources`
 - `GET /collection-runs`
@@ -382,6 +383,92 @@ default in `POST /collections/company`.
 **Identity guard:** the actor returns its top search hit without verifying it. A live query for
 `Zepto` returned `Zepto (Mexico)`. Every result is name-checked; a weak match is stored for
 audit, returned as `match_rejected`, and never becomes a KPI.
+
+## Collect News Tone With GDELT
+
+GDELT DOC 2.0 needs no API key and, unlike the NewsAPI developer tier, carries no restriction
+on production use. It supplies daily news tone (sentiment) and coverage volume.
+
+```powershell
+python scripts/collect_gdelt_batch.py --timespan 3m
+```
+
+Or for one company:
+
+```powershell
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/collections/gdelt `
+  -ContentType "application/json" `
+  -Body '{"company_name":"TCS","timespan":"3m"}'
+```
+
+**GDELT is rate limited to roughly one request every five seconds**, and each company needs
+three calls. That is about 25 seconds per company, or ~3.5 hours for 500 companies. So:
+
+- Run `scripts/collect_gdelt_batch.py` on a schedule to fill the database.
+- For a public-facing call, pass `"include_slow_sources": false` to `/collections/company`
+  so the request stays fast and the report reads the values the batch already stored.
+
+A rate-limit refusal is recorded in `collection_runs` with `source_status: rate_limited` and
+never breaks the rest of the pipeline.
+
+## How The Pieces Fit Together
+
+The report reads from the database, not from live API calls. That is what keeps a public tool
+fast and cheap:
+
+```text
+scheduled batch                     live request
+---------------                     ------------
+collect_gdelt_batch.py              POST /collections/company   (fast sources only)
+collect_macro.py                    GET  /companies/{id}/report
+        |                                        |
+        +-------------> PostgreSQL <-------------+
+                     source_records
+                     kpi_observations
+```
+
+## Refresh Everything (Documented Refresh Process)
+
+One command refreshes macro context and every company in the registry:
+
+```powershell
+python scripts/refresh_all.py
+```
+
+Useful variants:
+
+```powershell
+python scripts/refresh_all.py --skip-slow          # fast: no GDELT, run its batch separately
+python scripts/refresh_all.py --include-metered    # also runs Apify Glassdoor. Costs money.
+python scripts/refresh_all.py --limit 5            # smoke test
+python scripts/refresh_all.py --start-at 120       # resume an interrupted run
+```
+
+Recommended cadence while the pilot is running:
+
+| Job | Command | Frequency |
+| --- | --- | --- |
+| Everything except GDELT | `refresh_all.py --skip-slow` | daily |
+| GDELT tone | `collect_gdelt_batch.py` | nightly, it is slow |
+| Glassdoor | `refresh_all.py --include-metered` | monthly, it is billed per call |
+
+Exit code 2 means at least one company had no source succeed at all.
+
+## Thin-Data Companies
+
+Most companies have no collected signals early in a pilot, and an empty report is the worst
+answer for someone who typed a real company name. When a company has no value of its own for
+a signal, the report falls back to the **median across comparable companies**, choosing the
+tightest cohort that actually has data:
+
+```text
+same sector  ->  same segment  ->  whole registry
+```
+
+Every borrowed figure is labelled with which cohort it came from and how many peers stood
+behind it, and the report states plainly that these are not measurements of that company. A
+company's own value is never replaced by a cohort estimate.
 
 ## Generate A Company Report
 

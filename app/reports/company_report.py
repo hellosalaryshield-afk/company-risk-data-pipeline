@@ -10,6 +10,7 @@ from app.models.company import Company
 from app.models.source import DataSource
 from app.pipeline.macro_collection import MACRO_RECORD_TYPE, latest_macro_snapshot
 from app.pipeline.source_selection import sources_for_segment
+from app.reports.peer_context import build_peer_context
 from app.sources.workplace_signals import LOWER_IS_RISKIER
 
 # Human-readable labels so the report never shows a bare column name.
@@ -26,6 +27,14 @@ KPI_LABELS = {
     "market_max_drawdown_pct_period": "Worst drawdown in period",
     "market_annualized_volatility_pct": "Annualised volatility",
     "market_trading_volume": "Trading volume",
+    "gdelt_avg_tone": "Average news tone",
+    "gdelt_worst_day_tone": "Worst single day of news tone",
+    "gdelt_negative_day_pct": "Days with negative coverage",
+    "gdelt_tone_decline": "News tone decline over the window",
+    "gdelt_volume_mean_pct": "Average share of world coverage",
+    "gdelt_volume_spike_ratio": "Coverage spike vs. its own average",
+    "gdelt_article_count": "GDELT articles sampled",
+    "gdelt_tone_days": "Days of tone data",
     "glassdoor_rating": "Glassdoor overall rating",
     "glassdoor_review_count": "Glassdoor review count",
     "glassdoor_salary_count": "Glassdoor salary reports",
@@ -50,6 +59,9 @@ HIGHER_IS_RISKIER = {
     "market_drawdown_from_52w_high_pct",
     "market_max_drawdown_pct_period",
     "market_annualized_volatility_pct",
+    "gdelt_negative_day_pct",
+    "gdelt_tone_decline",
+    "gdelt_volume_spike_ratio",
 }
 
 COVERAGE_BANDS = (
@@ -168,7 +180,13 @@ def coverage_band(applicable: int, succeeded: int) -> dict:
     return {"ratio": 0.0, "band": "Thin", "note": COVERAGE_BANDS[-1][2]}
 
 
-def plain_language_notes(company: Company, segment: str | None, kpis: list[dict], coverage: dict) -> list[str]:
+def plain_language_notes(
+    company: Company,
+    segment: str | None,
+    kpis: list[dict],
+    coverage: dict,
+    peer_context: dict | None = None,
+) -> list[str]:
     """Descriptive sentences about what was collected. Not a prediction."""
     notes: list[str] = []
     by_name = {kpi["kpi_name"]: kpi for kpi in kpis}
@@ -220,6 +238,14 @@ def plain_language_notes(company: Company, segment: str | None, kpis: list[dict]
         )
 
     notes.append(coverage["note"])
+
+    if peer_context and peer_context["estimates"] and not kpis:
+        notes.append(
+            f"No signals have been collected for this company yet, so the report falls back to "
+            f"median values from {peer_context['peer_count']} comparable companies "
+            f"({peer_context['cohort']}). Those figures describe the cohort, not this company."
+        )
+
     return notes
 
 
@@ -235,6 +261,18 @@ def build_company_report(db: Session, company: Company, range_label: str = "last
         item for item in health if item["name"] in applicable and item["status"] == "completed" and item["records_stored"]
     ]
     coverage = coverage_band(len(applicable), len(succeeded))
+
+    peer_context = build_peer_context(
+        db,
+        company,
+        classification.segment,
+        own_kpi_names={kpi["kpi_name"] for kpi in kpis},
+    )
+    for estimate in peer_context["estimates"]:
+        estimate["label"] = KPI_LABELS.get(
+            estimate["kpi_name"], estimate["kpi_name"].replace("_", " ").capitalize()
+        )
+        estimate["higher_is_riskier"] = estimate["kpi_name"] in HIGHER_IS_RISKIER
 
     macro_record_count = db.scalar(
         select(func.count()).select_from(SourceRecord).where(SourceRecord.record_type == MACRO_RECORD_TYPE)
@@ -267,6 +305,7 @@ def build_company_report(db: Session, company: Company, range_label: str = "last
         "kpis": kpis,
         "source_health": health,
         "coverage": coverage,
+        "peer_context": peer_context,
         "macro": latest_macro_snapshot(db) if macro_record_count else [],
-        "notes": plain_language_notes(company, classification.segment, kpis, coverage),
+        "notes": plain_language_notes(company, classification.segment, kpis, coverage, peer_context),
     }

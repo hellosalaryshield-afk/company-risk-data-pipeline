@@ -37,6 +37,7 @@ rather than guessed, so the gap stays visible.
 | Data.gov.in MCA Company Master Data | CIN, legal name, incorporation date, company status | API key | Implemented, source unstable | Upstream returns timeouts and 502s. Failures are recorded in `collection_runs` so the pipeline continues. Not a blocker for other sources. |
 | Yahoo Finance chart API (`/v8/finance/chart`) | price, 52-week drawdown, volatility, max drawdown, volume | **No key** | Implemented and smoke-tested | Not present in the Colab notebook. Covers `INDIA_LISTED` and `FOREIGN_LISTED`. |
 | Yahoo Finance chart (indices/FX/commodities) | USD/INR, gold, US T-bill rate, NIFTY 50, NIFTY IT, S&P 500 | **No key** | Implemented and smoke-tested | Covers the Phase 3 industry-level and macro covariate families from the endpoint already in use. Stored with `company_id = NULL`. |
+| GDELT DOC 2.0 (`api.gdeltproject.org`) | news tone/sentiment, coverage volume, article list | **No key** | Implemented and smoke-tested | Not in the Colab notebook. Free and, unlike the NewsAPI developer tier, carries no restriction on production use. Rate limited to ~1 request/5s, so it runs as a scheduled batch. |
 | Screener.in | listed-company financial KPIs | Public website | Investigate | Listed Indian companies only. Need to confirm scraping terms and page stability. |
 | Apify Glassdoor actor (`burbn/glassdoor-company-search`) | 10 workplace ratings, review/salary volume, **open job count** | API token, **billed ~$0.10/company** | Implemented and smoke-tested | Re-added to scope by the client on 2026-09-09. Job count also partly covers the Hiring row. Matches are identity-checked before use. |
 | Company careers pages/job boards | job postings | Scraper/API varies | Later | High value but fragmented. Needs source-by-source testing. |
@@ -95,18 +96,59 @@ Limitations:
   symbol suffixes. Any other exchange raises `UnsupportedExchangeError` and is reported as
   `not_applicable` rather than silently guessed.
 
+
+## GDELT Adapter
+
+Chosen because the client asked for sources outside the notebook, and because it resolves a
+licensing problem rather than only adding data.
+
+**Why it matters beyond being free:** NewsAPI's Developer tier is restricted by its own terms
+to development and testing, not production. The planned product is a free public tool, which
+is production. GDELT has no such restriction, so it is the only zero-cost path to a launchable
+news signal. See [source-costs.md](source-costs.md).
+
+KPIs written to `kpi_observations`:
+
+| KPI | Unit | Direction | Meaning |
+| --- | --- | --- | --- |
+| `gdelt_avg_tone` | tone | lower is worse | Mean daily tone across the window, roughly -10 to +10 |
+| `gdelt_worst_day_tone` | tone | lower is worse | The single most negative day |
+| `gdelt_negative_day_pct` | percent | higher is worse | Share of days where coverage was net negative |
+| `gdelt_tone_decline` | tone | higher is worse | Earlier-half mean minus recent-half mean; positive means coverage is worsening |
+| `gdelt_volume_mean_pct` | percent | informational | Average share of worldwide coverage |
+| `gdelt_volume_spike_ratio` | ratio | higher is worse | Peak coverage over its own average; a burst usually means an event |
+| `gdelt_article_count` | count | informational | Articles sampled |
+| `gdelt_tone_days` | count | informational | Days of tone data returned |
+
+Tone is the one KPI family in this project where **lower is worse**, because that is GDELT's
+own scale. The derived signals above are named so their direction is unambiguous, and the
+report marks the risk-shaped ones explicitly.
+
+Limitations, all measured on 2026-09-09:
+
+- **Rate limited.** GDELT asks for one request every five seconds. In testing, even six-second
+  spacing drew HTTP 429 after a burst. It also answers with a plain-text notice under HTTP 200
+  instead of a proper error, so both cases are detected and raised as `GdeltRateLimitError`.
+- **Three requests per company** (tone, volume, articles), so roughly 25 seconds per company
+  with the 8-second floor used here. At 500 companies a full refresh is about 3.5 hours.
+- **Therefore batch-only.** `scripts/collect_gdelt_batch.py` is the supported path. The live
+  endpoint can skip it with `include_slow_sources: false` and read stored values instead.
+- **Name ambiguity.** Tone is computed over all global coverage matching the company name, so
+  a common name pulls in unrelated articles. Distinctive names are far more reliable.
+- No authentication, no account, no published quota beyond the pacing request.
+
 ## Segment Coverage Today
 
-| Segment | NewsAPI | MCA/Data.gov | Yahoo Finance |
-| --- | --- | --- | --- |
-| `INDIA_LISTED` | yes | yes (unstable) | **yes** |
-| `INDIA_UNLISTED_FUNDED` | yes | yes (unstable) | no |
-| `INDIA_UNLISTED_NON_FUNDED` | yes | yes (unstable) | no |
-| `FOREIGN_LISTED` | yes | no | **yes** |
-| `FOREIGN_UNLISTED_FUNDED` | yes | no | no |
-| `FOREIGN_UNLISTED_NON_FUNDED` | yes | no | no |
+| Segment | NewsAPI | MCA/Data.gov | Yahoo Finance | GDELT |
+| --- | --- | --- | --- | --- |
+| `INDIA_LISTED` | yes | yes (unstable) | **yes** | **yes** |
+| `INDIA_UNLISTED_FUNDED` | yes | yes (unstable) | no | **yes** |
+| `INDIA_UNLISTED_NON_FUNDED` | yes | yes (unstable) | no | **yes** |
+| `FOREIGN_LISTED` | yes | no | **yes** | **yes** |
+| `FOREIGN_UNLISTED_FUNDED` | yes | no | no | **yes** |
+| `FOREIGN_UNLISTED_NON_FUNDED` | yes | no | no | **yes** |
 
-The unlisted segments still have no source beyond news. That is the largest remaining gap
+GDELT covers all six segments, so every segment now has at least two working sources. The unlisted segments still have no *financial* source beyond news and tone. That is the largest remaining gap
 and the reason funding/startup databases need either a client-provided key or an approved
 public alternative.
 

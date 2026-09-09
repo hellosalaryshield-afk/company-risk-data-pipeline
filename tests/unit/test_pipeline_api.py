@@ -33,6 +33,11 @@ def stub_sources(monkeypatch):
         "collect_market_for_company",
         lambda **kwargs: {"status": "completed", "record_found": True, "kpis": {"market_price": 2255.5}},
     )
+    monkeypatch.setattr(
+        company_collection,
+        "collect_gdelt_for_company",
+        lambda **kwargs: {"status": "completed", "records_stored": 1, "kpis": {"gdelt_avg_tone": -1.5}},
+    )
 
 
 def test_company_collection_endpoint_runs_applicable_sources(client, db_session, stub_sources):

@@ -81,6 +81,7 @@ def test_build_company_report_for_a_listed_company(db_session):
         "data_gov_mca_company_master",
         "yahoo_finance_chart",
         "apify_glassdoor_company_search",
+        "gdelt_doc",
     }
     assert len(report["kpis"]) == 2
     assert any("32.7% below its 52-week high" in note for note in report["notes"])
@@ -131,3 +132,25 @@ def test_pdf_report_renders_to_a_pdf_document(db_session):
 
     assert pdf.startswith(b"%PDF-")
     assert len(pdf) > 1000
+
+
+def test_report_labels_and_directions_for_gdelt_signals(db_session):
+    """Tone is the one family where lower is worse, so the report must not mislabel it."""
+    company = db_session.create_company(canonical_name="Razorpay", aliases=["Razorpay Software"], funding_status="funded")
+    source = add_source(db_session, "gdelt_doc")
+    add_kpi(db_session, company, source, "gdelt_avg_tone", -1.85, "tone")
+    add_kpi(db_session, company, source, "gdelt_negative_day_pct", 62.5, "percent")
+    add_kpi(db_session, company, source, "gdelt_tone_decline", 1.4, "tone")
+
+    report = build_company_report(db_session.session, company)
+    by_name = {kpi["kpi_name"]: kpi for kpi in report["kpis"]}
+
+    assert by_name["gdelt_avg_tone"]["label"] == "Average news tone"
+    assert by_name["gdelt_avg_tone"]["higher_is_riskier"] is False
+    assert by_name["gdelt_negative_day_pct"]["higher_is_riskier"] is True
+    assert by_name["gdelt_tone_decline"]["higher_is_riskier"] is True
+
+    html = render_company_report_html(report)
+    assert "Average news tone" in html
+    assert "Days with negative coverage" in html
+    assert "gdelt_avg_tone" not in html

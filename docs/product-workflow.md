@@ -92,7 +92,9 @@ The Stitch screens can map to this internal tool:
 8. Macro and industry covariates. Done.
 9. Pipeline runner that stores raw records and KPIs. Done (`POST /collections/company`).
 10. HTML/PDF report generation. Done (`GET /companies/{id}/report`).
-11. Simple internal web UI. Not started.
+11. Thin-data sector/cohort fallback. Done.
+12. Single documented refresh process (`scripts/refresh_all.py`). Done.
+13. Simple internal web UI. Not started.
 12. Glassdoor workplace ratings and open job count. Done.
 13. Full KPI/source matrix against the client sheet. Done (`docs/kpi-source-matrix.csv`).
 14. GDELT news and sentiment. Not started, recommended next.
@@ -107,7 +109,7 @@ The Stitch screens can map to this internal tool:
 | 3 - lagged covariates | Company-internal, company-external, industry, macro | Partial. Industry and macro done; company-external partly via news. Company-internal (job postings, hiring/attrition) not started. Point-in-time handling not started. |
 | 4 - model, metrics, benchmark | Calibrated probability, walk-forward backtest | Not started. Depends on Phase 1 and 3. |
 | 5 - EPFO feasibility | Payroll releases, establishment portal, access routes | Not started. |
-| 6 - serve and refresh prototype | Name in, score and explanation out | Partial. Name resolution, ambiguity clarification, HTML/PDF output and refresh scripts exist. The score itself waits on Phase 4. |
+| 6 - serve and refresh prototype | Name in, score and explanation out | Mostly done. Name resolution, ambiguity clarification, thin-data cohort fallback, HTML/PDF output and a single documented refresh process all exist. Only the score itself waits on Phase 4. |
 
 ## Point-In-Time Handling
 

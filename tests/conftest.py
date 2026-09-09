@@ -24,6 +24,23 @@ class DatabaseSessionFixture:
         )
 
 
+@pytest.fixture(autouse=True)
+def no_gdelt_throttle_or_network(monkeypatch):
+    """Keep the GDELT throttle out of the test suite.
+
+    The real client waits eight seconds between calls, which would make the suite
+    unusable, and an un-stubbed test would reach the live API. Both are disabled here.
+    """
+    from app.sources import gdelt
+
+    monkeypatch.setattr(gdelt._THROTTLE, "min_interval_seconds", 0.0)
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("A test tried to call GDELT over the network. Stub it instead.")
+
+    monkeypatch.setattr(gdelt.httpx, "get", refuse)
+
+
 @pytest.fixture
 def db_session():
     engine = create_engine(

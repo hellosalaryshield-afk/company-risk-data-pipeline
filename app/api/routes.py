@@ -11,6 +11,7 @@ from app.database.session import get_db_session
 from app.models.collection import CollectionRun
 from app.models.source import DataSource
 from app.pipeline.company_collection import collect_company_data
+from app.pipeline.gdelt_collection import collect_gdelt_for_company
 from app.pipeline.macro_collection import collect_macro_indicators
 from app.pipeline.market_collection import collect_market_for_company
 from app.pipeline.mca_collection import McaCollectionError, collect_mca_for_company
@@ -27,6 +28,8 @@ from app.schemas.mca import McaCollectionRequest, McaCollectionResponse
 from app.schemas.workplace import WorkplaceCollectionRequest, WorkplaceCollectionResponse
 from app.schemas.pipeline import (
     CollectionRunRead,
+    GdeltCollectionRequest,
+    GdeltCollectionResponse,
     CompanyCollectionRequest,
     CompanyCollectionResponse,
     CompanySummaryResponse,
@@ -258,3 +261,15 @@ def collect_workplace(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return WorkplaceCollectionResponse(**result)
+
+
+@router.post("/collections/gdelt", response_model=GdeltCollectionResponse)
+def collect_gdelt(payload: GdeltCollectionRequest, db: Session = Depends(get_db_session)) -> GdeltCollectionResponse:
+    """Collect GDELT news tone and coverage volume for one company. No API key required."""
+    result = collect_gdelt_for_company(
+        db=db,
+        query=payload.company_name,
+        timespan=payload.timespan,
+        max_articles=payload.max_articles,
+    )
+    return GdeltCollectionResponse(**result)

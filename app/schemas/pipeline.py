@@ -12,6 +12,14 @@ class CompanyCollectionRequest(BaseModel):
         default=False,
         description="Run sources that are billed per call, such as the Apify Glassdoor actor.",
     )
+    include_slow_sources: bool = Field(
+        default=True,
+        description=(
+            "Run rate-limited sources such as GDELT. Adds roughly 25 seconds. Turn off for a "
+            "public-facing call and read the values the scheduled batch already stored."
+        ),
+    )
+    gdelt_timespan: str = Field(default="3m", pattern=r"^(1w|1m|2m|3m|6m|12m|24m)$")
 
 
 class SourceOutcome(BaseModel):
@@ -92,3 +100,24 @@ class CompanySummaryResponse(BaseModel):
     macro: list[dict] = []
     notes: list[str] = []
     generated_at: datetime
+
+
+class GdeltCollectionRequest(BaseModel):
+    company_name: str = Field(min_length=1, max_length=255)
+    timespan: str = Field(default="3m", pattern=r"^(1w|1m|2m|3m|6m|12m|24m)$")
+    max_articles: int = Field(default=25, ge=1, le=250)
+
+
+class GdeltCollectionResponse(BaseModel):
+    status: str
+    query: str | None = None
+    confidence: str | None = None
+    message: str | None = None
+    candidates: list[str] = []
+    company: dict | None = None
+    collection_run_id: int | None = None
+    source: str | None = None
+    record_found: bool | None = None
+    records_stored: int | None = None
+    gdelt_record: dict | None = None
+    kpis: dict[str, float] = {}

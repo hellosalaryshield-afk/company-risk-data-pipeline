@@ -5,18 +5,22 @@ from sqlalchemy.orm import Session
 from app.companies.repository import CompanyRepository
 from app.companies.resolver import CompanyResolver
 from app.config.settings import Settings
+from app.pipeline.gdelt_collection import GdeltCollectionError, collect_gdelt_for_company
 from app.pipeline.market_collection import collect_market_for_company
 from app.pipeline.mca_collection import McaCollectionError, collect_mca_for_company
 from app.pipeline.news_collection import NewsCollectionError, collect_news_for_company
 from app.pipeline.source_selection import (
     ALL_SOURCES,
+    GDELT_SOURCE,
     MARKET_SOURCE,
     MCA_SOURCE,
     NEWS_SOURCE,
     WORKPLACE_SOURCE,
     is_metered,
+    is_slow,
     metered_skip_reason,
     skip_reason,
+    slow_skip_reason,
     sources_for_segment,
 )
 from app.pipeline.workplace_collection import WorkplaceCollectionError, collect_workplace_for_company
@@ -36,6 +40,8 @@ def collect_company_data(
     page_size: int = 25,
     range_period: str = "6mo",
     include_metered_sources: bool = False,
+    include_slow_sources: bool = True,
+    gdelt_timespan: str = "3m",
 ) -> dict:
     """Run every source that applies to one company and return a combined summary.
 
@@ -82,6 +88,16 @@ def collect_company_data(
             )
             continue
 
+        if is_slow(source_name) and not include_slow_sources:
+            results.append(
+                {
+                    "source": source_name,
+                    "status": "skipped",
+                    "message": slow_skip_reason(source_name),
+                }
+            )
+            continue
+
         if is_metered(source_name) and not include_metered_sources:
             results.append(
                 {
@@ -101,6 +117,7 @@ def collect_company_data(
                 days_back=days_back,
                 page_size=page_size,
                 range_period=range_period,
+                gdelt_timespan=gdelt_timespan,
             )
         )
 
@@ -151,6 +168,7 @@ def run_source(
     days_back: int,
     page_size: int,
     range_period: str,
+    gdelt_timespan: str = "3m",
 ) -> dict:
     """Run one source and normalize its outcome into a common shape."""
     try:
@@ -168,9 +186,11 @@ def run_source(
             result = collect_market_for_company(db=db, query=company_name, range_period=range_period)
         elif source_name == WORKPLACE_SOURCE:
             result = collect_workplace_for_company(db=db, query=company_name, settings=settings)
+        elif source_name == GDELT_SOURCE:
+            result = collect_gdelt_for_company(db=db, query=company_name, timespan=gdelt_timespan)
         else:
             return {"source": source_name, "status": "error", "message": f"Unknown source {source_name}."}
-    except (NewsCollectionError, McaCollectionError, WorkplaceCollectionError) as exc:
+    except (NewsCollectionError, McaCollectionError, WorkplaceCollectionError, GdeltCollectionError) as exc:
         db.rollback()
         return {"source": source_name, "status": "not_configured", "message": str(exc)}
     except Exception as exc:  # noqa: BLE001 - one bad source must not stop the rest

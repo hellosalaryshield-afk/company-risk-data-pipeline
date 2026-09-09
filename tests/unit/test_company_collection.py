@@ -27,13 +27,19 @@ def stub_sources(monkeypatch):
         calls.append("market")
         return {"status": "completed", "collection_run_id": 3, "record_found": True, "kpis": {"market_price": 10.0}}
 
+
+    def fake_gdelt(db, query, timespan="3m", **kwargs):
+        calls.append("gdelt")
+        return {"status": "completed", "collection_run_id": 4, "records_stored": 1, "kpis": {"gdelt_avg_tone": -1.5}}
+
     monkeypatch.setattr(company_collection, "collect_news_for_company", fake_news)
     monkeypatch.setattr(company_collection, "collect_mca_for_company", fake_mca)
     monkeypatch.setattr(company_collection, "collect_market_for_company", fake_market)
+    monkeypatch.setattr(company_collection, "collect_gdelt_for_company", fake_gdelt)
     return calls
 
 
-def test_listed_company_runs_all_three_sources(db_session, stub_sources):
+def test_listed_company_runs_every_free_source(db_session, stub_sources):
     db_session.create_company(
         canonical_name="Tata Consultancy Services",
         aliases=["TCS"],
@@ -45,10 +51,15 @@ def test_listed_company_runs_all_three_sources(db_session, stub_sources):
 
     assert result["status"] == "completed"
     assert result["segment"]["segment"] == "INDIA_LISTED"
-    assert stub_sources == ["news", "mca", "market"]
-    assert result["sources_succeeded"] == ["newsapi", "yahoo_finance_chart"]
+    # Glassdoor is metered, so it is absent unless the caller opts in.
+    assert stub_sources == ["news", "mca", "market", "gdelt"]
+    assert result["sources_succeeded"] == ["newsapi", "yahoo_finance_chart", "gdelt_doc"]
     assert result["sources_failed"] == ["data_gov_mca_company_master"]
-    assert result["kpis"] == {"layoff_news_count": 1.0, "market_price": 10.0}
+    assert result["kpis"] == {
+        "layoff_news_count": 1.0,
+        "market_price": 10.0,
+        "gdelt_avg_tone": -1.5,
+    }
 
 
 def test_unlisted_company_skips_market_source(db_session, stub_sources):
@@ -57,18 +68,19 @@ def test_unlisted_company_skips_market_source(db_session, stub_sources):
     result = collect_company_data(db=db_session.session, query="Razorpay", settings=SettingsStub())
 
     assert "market" not in stub_sources
+    assert "gdelt" in stub_sources
     assert "yahoo_finance_chart" in result["sources_skipped"]
     market = next(item for item in result["sources"] if item["source"] == "yahoo_finance_chart")
     assert market["status"] == "skipped"
     assert "listed companies only" in market["message"]
 
 
-def test_undetermined_segment_runs_news_only(db_session, stub_sources):
+def test_undetermined_segment_runs_only_name_based_sources(db_session, stub_sources):
     db_session.create_company(canonical_name="Zepto", aliases=["Kiranakart"])
 
     result = collect_company_data(db=db_session.session, query="Zepto", settings=SettingsStub())
 
-    assert stub_sources == ["news"]
+    assert stub_sources == ["news", "gdelt"]
     assert result["segment"]["segment"] is None
     assert set(result["sources_skipped"]) == {
         "data_gov_mca_company_master",
@@ -107,6 +119,9 @@ def test_missing_api_key_is_reported_without_stopping_other_sources(db_session, 
     monkeypatch.setattr(company_collection, "collect_news_for_company", raise_missing_key)
     monkeypatch.setattr(company_collection, "collect_mca_for_company", fake_mca)
     monkeypatch.setattr(company_collection, "collect_market_for_company", fake_market)
+    monkeypatch.setattr(
+        company_collection, "collect_gdelt_for_company", lambda **kwargs: {"status": "completed", "kpis": {}}
+    )
 
     result = collect_company_data(db=db_session.session, query="Infosys", settings=SettingsStub())
 
@@ -131,6 +146,9 @@ def test_unexpected_source_error_does_not_stop_the_run(db_session, monkeypatch):
         "collect_market_for_company",
         lambda **kwargs: {"status": "completed", "record_found": True, "kpis": {"market_price": 2.0}},
     )
+    monkeypatch.setattr(
+        company_collection, "collect_gdelt_for_company", lambda **kwargs: {"status": "completed", "kpis": {}}
+    )
 
     result = collect_company_data(db=db_session.session, query="Wipro", settings=SettingsStub())
 
@@ -138,3 +156,24 @@ def test_unexpected_source_error_does_not_stop_the_run(db_session, monkeypatch):
     assert news["status"] == "error"
     assert "ValueError" in news["message"]
     assert result["status"] == "completed"
+
+
+def test_slow_sources_can_be_excluded(db_session, stub_sources):
+    db_session.create_company(
+        canonical_name="Tata Consultancy Services",
+        aliases=["TCS"],
+        ticker="TCS",
+        exchange="NSE",
+    )
+
+    result = collect_company_data(
+        db=db_session.session,
+        query="TCS",
+        settings=SettingsStub(),
+        include_slow_sources=False,
+    )
+
+    assert "gdelt" not in stub_sources
+    gdelt = next(item for item in result["sources"] if item["source"] == "gdelt_doc")
+    assert gdelt["status"] == "skipped"
+    assert "rate limited" in gdelt["message"]

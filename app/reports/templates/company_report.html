@@ -127,6 +127,34 @@
   {% endfor %}
 </table>
 
+{% if report.peer_context.estimates %}
+<h2>Sector estimate{% if not report.kpis %} (no data of its own yet){% endif %}</h2>
+<p class="sub">
+  {{ report.peer_context.note }}
+</p>
+<table>
+  <tr>
+    <th style="width:52%">Signal</th>
+    <th class="num" style="width:22%">Cohort median</th>
+    <th class="num" style="width:14%">Peers</th>
+    <th style="width:12%">Direction</th>
+  </tr>
+  {% for estimate in report.peer_context.estimates %}
+  <tr>
+    <td>{{ estimate.label }}</td>
+    <td class="num">{{ "%.2f"|format(estimate.median) }}</td>
+    <td class="num">{{ estimate.peer_count }}</td>
+    <td class="sub">{% if estimate.higher_is_riskier %}higher = more risk{% else %}-{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="sub">
+  <strong>These are not measurements of this company.</strong> They are the median across
+  comparable companies, shown so a thin-data company still gets useful context instead of a
+  blank report.
+</p>
+{% endif %}
+
 {% if report.macro %}
 <h2>Market and macro context</h2>
 <table>
