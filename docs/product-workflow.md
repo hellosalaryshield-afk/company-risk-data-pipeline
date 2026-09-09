@@ -113,14 +113,51 @@ The Stitch screens can map to this internal tool:
 
 ## Point-In-Time Handling
 
-Phase 3 requires that every feature be usable at prediction time. This is not yet
-implemented and is the largest correctness risk in the current pipeline:
+Phase 3 requires that every feature be usable at prediction time. This is now implemented in
+`app/features/point_in_time.py`.
 
-- `source_records.published_at` and `collected_at` are stored, so an as-of filter is
-  possible, but nothing enforces it yet.
-- `kpi_observations` currently records values as of collection time. Recomputing a
-  historical feature vector would need an explicit as-of query.
-- No leakage check has been run, and the brief requires mentor sign-off before modeling.
+Three timestamps decide whether a value may be used at a prediction date D:
+
+| Field | Meaning | Rule |
+| --- | --- | --- |
+| `published_at` | when the fact became public | must be `<= D`, or it is a leak |
+| `period_end` | last day the value was computed over | if it runs past `D`, the number itself contains the future |
+| `collected_at` | when this pipeline fetched it | usually after `D`; acceptable only for sources that do not revise |
+
+`GET /companies/{id}/features?as_of=...` returns the vector as it would have been known at
+that date. Anything published later is excluded outright; anything that fails another check
+is excluded too, with the reason listed under `excluded`.
+
+### Source classifications
+
+- **Revising sources** (`data_gov_mca_company_master`): MCA filings are amended, so a
+  backfilled value cannot be trusted at a past date.
+- **Undated sources** (`apify_glassdoor_company_search`): the actor returns a snapshot with
+  no date, so nothing from it can be proven point-in-time safe. It is usable for a current
+  report but must be excluded from a backtest.
+
+### Running the leakage check
+
+The brief requires this before any modelling, with mentor sign-off:
+
+```powershell
+python scripts/check_leakage.py
+python scripts/check_leakage.py --as-of 2026-06-01
+```
+
+Exit code 2 means impossible timestamps exist and nothing downstream can be trusted.
+
+### Known issues found by the first run
+
+1. **Glassdoor KPIs cannot be point-in-time verified.** The actor returns an undated
+   snapshot. They are fine in a current report and must not enter a backtest. Repeated
+   collection over time will build a real dated history.
+2. **Legacy news rows have impossible timestamps.** Rows written before the fix stamped
+   `published_at` from the application clock while `collected_at` came from the database
+   clock, so published landed a few seconds after collected. The collector now dates a
+   count by its newest article and records the window. Repair the old rows with
+   `python scripts/repair_timestamps.py --apply`, which clears the unreliable date rather
+   than inventing one.
 
 ## Colab Review Notes
 

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -111,6 +111,16 @@ def collect_news_for_company(
         source_record_count += 1
 
     kpis = extract_news_kpis(article_texts)
+
+    # A count over a window is knowable once its newest article is public, not at the moment
+    # the query happened to run. Stamping it with now() both overstates when it was available
+    # and lands after the database-side collected_at, which reads as a corrupt timestamp.
+    # The window itself is recorded so a point-in-time check can prove it does not run past a
+    # prediction date. See app/features/point_in_time.py.
+    article_dates = [article.published_at for article in fetch_result.records if article.published_at]
+    period_end = max(article_dates) if article_dates else None
+    period_start = datetime.now(UTC) - timedelta(days=days_back)
+
     for kpi_name, value in kpis.items():
         db.add(
             KpiObservation(
@@ -120,7 +130,9 @@ def collect_news_for_company(
                 value_numeric=Decimal(value),
                 unit="count",
                 observed_at=datetime.now(UTC),
-                published_at=datetime.now(UTC),
+                published_at=period_end,
+                period_start=period_start,
+                period_end=period_end,
                 confidence="medium",
                 extra_metadata={
                     "source": NEWS_SOURCE_NAME,

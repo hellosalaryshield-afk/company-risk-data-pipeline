@@ -170,6 +170,8 @@ Expected behavior:
 - `GET /companies/{id}/summary`
 - `GET /companies/{id}/report` - HTML report
 - `GET /companies/{id}/report.pdf` - PDF report
+- `GET /companies/{id}/features?as_of=...` - point-in-time feature vector
+- `GET /leakage-check` - point-in-time audit of every stored KPI
 
 ## Collect NewsAPI Data
 
@@ -427,6 +429,29 @@ collect_macro.py                    GET  /companies/{id}/report
                      source_records
                      kpi_observations
 ```
+
+## Point-In-Time Features (Phase 3)
+
+A feature used to predict a layoff six months out must only contain what was actually known
+at the prediction date. Ask for a company's vector as of any date:
+
+```powershell
+Invoke-RestMethod "http://127.0.0.1:8000/companies/1/features?as_of=2026-06-01"
+```
+
+Values published after that date are excluded outright. Values that were published in time
+but still fail a check are excluded too, with the reason given, for example a count whose
+30-day window runs past the prediction date.
+
+Before any modelling, run the leakage check the brief requires:
+
+```powershell
+python scripts/check_leakage.py
+```
+
+It exits 2 if any row has impossible timestamps. Two known issues it currently reports:
+Glassdoor ratings carry no publication date and so cannot enter a backtest, and legacy news
+rows written before the timestamp fix need `python scripts/repair_timestamps.py --apply`.
 
 ## Refresh Everything (Documented Refresh Process)
 

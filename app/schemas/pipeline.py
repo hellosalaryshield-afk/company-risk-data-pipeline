@@ -121,3 +121,21 @@ class GdeltCollectionResponse(BaseModel):
     records_stored: int | None = None
     gdelt_record: dict | None = None
     kpis: dict[str, float] = {}
+
+
+class FeatureVectorResponse(BaseModel):
+    company_id: int
+    as_of: str
+    safe_only: bool
+    features: dict[str, float] = {}
+    excluded: list[dict] = []
+    provenance: list[dict] = []
+
+
+class LeakageScanResponse(BaseModel):
+    as_of: str
+    observations_checked: int
+    point_in_time_safe: int
+    with_issues: int
+    findings: list[dict] = []
+    impossible_timestamps: list[dict] = []

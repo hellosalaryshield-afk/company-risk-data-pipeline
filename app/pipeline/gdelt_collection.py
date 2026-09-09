@@ -144,6 +144,7 @@ def collect_gdelt_for_company(
     }
 
     observed_at = latest_observation_time(fetch_result)
+    period_start, period_end = observation_window(fetch_result)
 
     db.add(
         SourceRecord(
@@ -170,7 +171,9 @@ def collect_gdelt_for_company(
                 value_numeric=Decimal(str(value)),
                 unit=UNITS.get(kpi_name),
                 observed_at=observed_at,
-                published_at=observed_at,
+                published_at=period_end or observed_at,
+                period_start=period_start,
+                period_end=period_end,
                 confidence="medium",
                 extra_metadata={
                     "source": GDELT_SOURCE_NAME,
@@ -203,6 +206,21 @@ def latest_observation_time(result: GdeltFetchResult) -> datetime:
         if timeline and timeline.dates:
             return timeline.dates[-1]
     return datetime.now(UTC)
+
+
+def observation_window(result: GdeltFetchResult) -> tuple[datetime | None, datetime | None]:
+    """First and last day GDELT actually reported over.
+
+    Recorded so a point-in-time check can prove the window does not extend past a
+    prediction date, which would put future information inside a past feature.
+    """
+    dates: list[datetime] = []
+    for timeline in (result.tone, result.volume):
+        if timeline and timeline.dates:
+            dates.extend(timeline.dates)
+    if not dates:
+        return None, None
+    return min(dates), max(dates)
 
 
 def company_payload(company: Company) -> dict:

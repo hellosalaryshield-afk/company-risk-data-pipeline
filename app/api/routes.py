@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy import desc, select
@@ -11,6 +13,7 @@ from app.database.session import get_db_session
 from app.models.collection import CollectionRun
 from app.models.source import DataSource
 from app.pipeline.company_collection import collect_company_data
+from app.features.point_in_time import feature_vector_as_of, leakage_scan
 from app.pipeline.gdelt_collection import collect_gdelt_for_company
 from app.pipeline.macro_collection import collect_macro_indicators
 from app.pipeline.market_collection import collect_market_for_company
@@ -28,8 +31,10 @@ from app.schemas.mca import McaCollectionRequest, McaCollectionResponse
 from app.schemas.workplace import WorkplaceCollectionRequest, WorkplaceCollectionResponse
 from app.schemas.pipeline import (
     CollectionRunRead,
+    FeatureVectorResponse,
     GdeltCollectionRequest,
     GdeltCollectionResponse,
+    LeakageScanResponse,
     CompanyCollectionRequest,
     CompanyCollectionResponse,
     CompanySummaryResponse,
@@ -273,3 +278,34 @@ def collect_gdelt(payload: GdeltCollectionRequest, db: Session = Depends(get_db_
         max_articles=payload.max_articles,
     )
     return GdeltCollectionResponse(**result)
+
+
+@router.get("/companies/{company_id}/features", response_model=FeatureVectorResponse)
+def company_features(
+    company_id: int,
+    as_of: datetime | None = None,
+    safe_only: bool = True,
+    db: Session = Depends(get_db_session),
+) -> FeatureVectorResponse:
+    """Feature vector for one company as it would have been known at `as_of`.
+
+    Values published after that date are excluded outright. Values that were published in
+    time but fail another point-in-time check are excluded too unless `safe_only` is false,
+    and the reason is listed under `excluded`.
+    """
+    load_company_or_404(company_id, db)
+    as_of = as_of or datetime.now(UTC)
+    if as_of.tzinfo is None:
+        as_of = as_of.replace(tzinfo=UTC)
+
+    return FeatureVectorResponse(**feature_vector_as_of(db, company_id, as_of, safe_only=safe_only))
+
+
+@router.get("/leakage-check", response_model=LeakageScanResponse)
+def leakage_check(as_of: datetime | None = None, db: Session = Depends(get_db_session)) -> LeakageScanResponse:
+    """Point-in-time audit of every stored KPI. Required before Phase 4 modelling."""
+    as_of = as_of or datetime.now(UTC)
+    if as_of.tzinfo is None:
+        as_of = as_of.replace(tzinfo=UTC)
+
+    return LeakageScanResponse(**leakage_scan(db, as_of=as_of))
