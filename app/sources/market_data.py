@@ -168,3 +168,29 @@ def to_datetime(value: Any) -> datetime | None:
         return datetime.fromtimestamp(int(value), tz=UTC)
     except (TypeError, ValueError, OSError):
         return None
+
+
+def parse_dated_closes(payload: dict[str, Any]) -> list[tuple[datetime, float]]:
+    """Closing prices paired with their dates, oldest first.
+
+    `parse_chart_payload` drops the timestamps because a current quote does not need them.
+    Historical backfill does: without a date per point there is no way to say what was known
+    when, and the whole series becomes unusable for a point-in-time feature.
+    """
+    chart = payload.get("chart") or {}
+    results = chart.get("result")
+    if not results:
+        return []
+
+    result = results[0]
+    timestamps = result.get("timestamp") or []
+    quote_blocks = ((result.get("indicators") or {}).get("quote")) or [{}]
+    closes = (quote_blocks[0].get("close")) or []
+
+    points: list[tuple[datetime, float]] = []
+    for timestamp, close in zip(timestamps, closes):
+        if timestamp is None or close is None:
+            continue
+        points.append((datetime.fromtimestamp(timestamp, tz=UTC), float(close)))
+
+    return points

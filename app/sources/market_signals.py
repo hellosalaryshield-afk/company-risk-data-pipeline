@@ -13,15 +13,23 @@ def daily_log_returns(closes: list[float]) -> list[float]:
     return returns
 
 
-def annualized_volatility_pct(closes: list[float]) -> float | None:
-    """Annualized standard deviation of daily log returns, in percent."""
+def annualized_volatility_pct(
+    closes: list[float],
+    periods_per_year: int = TRADING_DAYS_PER_YEAR,
+) -> float | None:
+    """Annualised standard deviation of log returns.
+
+    `periods_per_year` must match the sampling interval: 252 for daily bars, 52 for
+    weekly, 12 for monthly. Using the daily constant on monthly data overstates
+    volatility by roughly 4.5x.
+    """
     returns = daily_log_returns(closes)
     if len(returns) < 2:
         return None
 
     mean = sum(returns) / len(returns)
     variance = sum((value - mean) ** 2 for value in returns) / (len(returns) - 1)
-    return math.sqrt(variance) * math.sqrt(TRADING_DAYS_PER_YEAR) * 100
+    return math.sqrt(variance) * math.sqrt(periods_per_year) * 100
 
 
 def period_change_pct(closes: list[float]) -> float | None:
