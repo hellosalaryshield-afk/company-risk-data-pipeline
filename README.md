@@ -467,6 +467,44 @@ ticker appears in it. Most days most companies will not appear, which is normal.
 
 Add it to the daily job list alongside `refresh_all.py --skip-slow`.
 
+## Historical Backfill
+
+A model that predicts six to nine months ahead cannot be trained or backtested on a single
+current reading. Yahoo returns the full price series on the same free call the pipeline
+already makes, so that history is kept rather than discarded:
+
+```powershell
+python scripts/backfill_market_history.py
+```
+
+Result against the live database: **21,488 KPI rows across 1,231 distinct dates**, reaching
+1996 for Infosys and Wipro, 2002 for TCS, and each newer listing's IPO date.
+
+Two things make this usable rather than merely large:
+
+- **Every value is computed from a trailing window ending at its own date.** A 2022 figure
+  contains no 2026 information, so it passes the leakage check.
+- **The sampling interval is measured, not assumed.** Yahoo returns monthly bars for a
+  company listed in 2002 and daily bars for one listed in 2024. Annualising daily bars with
+  12 periods understates volatility by about 4.6x, so `infer_interval` reads the real spacing
+  between points.
+
+The backfill is idempotent: re-running tops up missing dates and skips what already exists.
+
+### What history each source can give
+
+| Source | History available |
+| --- | --- |
+| Yahoo market data | **1996 to now, backfilled** |
+| GDELT tone | ~24 months, free, **not yet backfilled** |
+| EPFO, IBBI | Published archives, obtainable once built |
+| NewsAPI | 1 month free, 5 years on the $449/month plan |
+| NSE deals, Glassdoor | **Forward only** - one day per file, or undated snapshots |
+| MCA | **None** - current filing state only |
+
+Unlisted companies have no market history at all, because they have no share price. For
+them history only accrues from the day collection starts.
+
 ## Refresh Everything (Documented Refresh Process)
 
 One command refreshes macro context and every company in the registry:

@@ -173,6 +173,21 @@ Limitations:
 Point-in-time: dated from the deal day, which is the disclosure date, so this source is
 backtest-safe.
 
+
+## Historical Depth By Source
+
+Measured, not assumed. This is what decides whether the model can be backtested at all.
+
+| Source | History | Evidence |
+| --- | --- | --- |
+| Yahoo Finance | **1996 to now** | Backfilled: 21,488 rows, 1,231 distinct dates, 13 listed companies |
+| GDELT | ~24 months | `timespan=24m` returns daily tone. Free. Not yet backfilled |
+| NewsAPI | 1 month free | Free tier limit. 5 years requires the $449/month plan |
+| NSE deals | Forward only | Each file is one trading day; past days are not retrievable |
+| Glassdoor | Forward only | Undated snapshot, so no past point can ever be dated |
+| MCA | None | Returns current filing state, not a dated series |
+| EPFO, IBBI | Published archives | Both publish dated historical files, obtainable once built |
+
 ## Segment Coverage Today
 
 | Segment | NewsAPI | MCA/Data.gov | Yahoo Finance | GDELT |

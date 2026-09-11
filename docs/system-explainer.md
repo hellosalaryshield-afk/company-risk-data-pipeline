@@ -310,6 +310,36 @@ the one nobody should trust.
 
 ---
 
+## 9b. Historical data
+
+The client's question: is there any history, or does the model have to wait?
+
+**For listed companies, history now exists.** The backfill reaches 1996. For everything else,
+history accrues forward from the day collection starts.
+
+| Source | History | Detail |
+| --- | --- | --- |
+| Yahoo market | **1996 to now** | Backfilled. 21,488 rows, 1,231 distinct dates |
+| GDELT tone | ~24 months | Free and obtainable, **not yet done** |
+| EPFO, IBBI | Published archives | Obtainable once those adapters are built |
+| NewsAPI | 1 month free | 5 years costs $449/month |
+| NSE deals | Forward only | One trading day per file; past days cannot be recovered |
+| Glassdoor | Forward only | Undated snapshots, no past history exists at all |
+| MCA | None | Current filing state only |
+
+Two details that make the backfill trustworthy rather than merely large:
+
+1. **Trailing windows.** Each historical value uses only the points up to its own date. Using
+   the whole series to compute a 2022 figure would put 2026 information inside it.
+2. **Measured intervals.** Yahoo returns monthly bars for a 2002 listing and daily bars for a
+   2024 one. Annualising daily bars as if monthly understated volatility by 4.6x - Swiggy read
+   8.4% where the correct figure is 49.7%. The interval is now inferred from the actual
+   spacing between points.
+
+**The honest limit:** four of the six segments are unlisted and have no share price, so they
+have no market history and never will. Their history starts today.
+
+
 ## 10. Thin-data companies
 
 Most companies have no collected signals early in a pilot, and a blank page is the worst
