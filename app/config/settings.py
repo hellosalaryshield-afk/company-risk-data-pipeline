@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     data_gov_api_key: str | None = None
     report_footer_note: str | None = None
     apify_token: str | None = None
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-3.5-flash-lite"
+    logfire_token: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 
 from app.api.routes import router
 from app.config.logging import configure_logging
+from app.config.observability import configure_observability
 from app.config.settings import get_settings
 
 
@@ -15,6 +16,7 @@ def create_app() -> FastAPI:
         description="Data collection backend for company risk research.",
     )
     application.include_router(router)
+    configure_observability(settings, app=application)
     return application
 
 

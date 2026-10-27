@@ -41,7 +41,10 @@ from app.schemas.pipeline import (
     DataSourceRead,
     MacroCollectionRequest,
     MacroCollectionResponse,
+    NewsSignalCollectionRequest,
+    NewsSignalCollectionResponse,
 )
+from app.pipeline.news_signal_collection import NewsSignalCollectionError, collect_news_signals_for_company
 from app.pipeline.workplace_collection import WorkplaceCollectionError, collect_workplace_for_company
 from app.reports.company_report import build_company_report
 from app.reports.renderer import render_company_report_html, render_company_report_pdf
@@ -278,6 +281,30 @@ def collect_gdelt(payload: GdeltCollectionRequest, db: Session = Depends(get_db_
         max_articles=payload.max_articles,
     )
     return GdeltCollectionResponse(**result)
+
+
+@router.post("/collections/news-signals", response_model=NewsSignalCollectionResponse)
+def collect_news_signals(
+    payload: NewsSignalCollectionRequest, db: Session = Depends(get_db_session)
+) -> NewsSignalCollectionResponse:
+    """Find news articles, read their full text, and have Gemini flag layoff-risk signals.
+
+    Slow (GDELT pacing plus one page fetch per article), so the nightly batch script is the
+    intended path. This endpoint is for testing one company.
+    """
+    try:
+        result = collect_news_signals_for_company(
+            db=db,
+            query=payload.company_name,
+            settings=get_settings(),
+            timespan=payload.timespan,
+            max_articles=payload.max_articles,
+            discovery=payload.discovery,
+        )
+    except NewsSignalCollectionError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return NewsSignalCollectionResponse(**result)
 
 
 @router.get("/companies/{company_id}/features", response_model=FeatureVectorResponse)

@@ -21,10 +21,15 @@ class NewsApiClient:
             "sortBy": "relevance",
             "language": "en",
             "pageSize": page_size,
-            "apiKey": self.api_key,
         }
 
-        response = httpx.get(NEWSAPI_ENDPOINT, params=params, timeout=self.timeout_seconds)
+        # The key goes in a header, not the query string, so it never appears in a logged URL.
+        response = httpx.get(
+            NEWSAPI_ENDPOINT,
+            params=params,
+            headers={"X-Api-Key": self.api_key},
+            timeout=self.timeout_seconds,
+        )
         response.raise_for_status()
         payload = response.json()
         articles = [parse_article(article) for article in payload.get("articles", [])]

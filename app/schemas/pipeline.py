@@ -124,6 +124,36 @@ class GdeltCollectionResponse(BaseModel):
     kpis: dict[str, float] = {}
 
 
+class NewsSignalCollectionRequest(BaseModel):
+    company_name: str = Field(min_length=1, max_length=255)
+    timespan: str = Field(default="1m", pattern=r"^(1w|2w|1m|2m|3m)$")
+    max_articles: int = Field(default=10, ge=1, le=50)
+    discovery: str = Field(default="auto", pattern=r"^(auto|gdelt|newsapi)$")
+
+
+class NewsSignalCollectionResponse(BaseModel):
+    status: str
+    query: str | None = None
+    confidence: str | None = None
+    message: str | None = None
+    candidates: list[str] = []
+    company: dict | None = None
+    collection_run_id: int | None = None
+    source: str | None = None
+    model: str | None = None
+    discovered: int | None = None
+    already_seen: int | None = None
+    text_fetched: int | None = None
+    text_unavailable: int | None = None
+    fetch_statuses: dict[str, int] = {}
+    classified: int | None = None
+    risk_articles: int | None = None
+    quota_hit: bool | None = None
+    notes: list[str] = []
+    articles: list[dict] = []
+    kpis: dict[str, float] = {}
+
+
 class FeatureVectorResponse(BaseModel):
     company_id: int
     as_of: str

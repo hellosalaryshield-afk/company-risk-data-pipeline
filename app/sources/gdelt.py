@@ -79,14 +79,21 @@ class GdeltClient:
         self.throttle = throttle if throttle is not None else _THROTTLE
         self.user_agent = user_agent
 
-    def fetch_mode(self, company_name: str, mode: str, timespan: str = "3m", **extra: Any) -> dict[str, Any]:
+    def fetch_mode(
+        self,
+        company_name: str,
+        mode: str,
+        timespan: str = "3m",
+        query: str | None = None,
+        **extra: Any,
+    ) -> dict[str, Any]:
         """Call one GDELT mode and return parsed JSON.
 
         GDELT signals rate limiting with an HTTP 429 or, confusingly, with a plain-text
         body under a 200. Both are surfaced as GdeltRateLimitError.
         """
         params = {
-            "query": f'"{company_name}"',
+            "query": query or f'"{company_name}"',
             "mode": mode,
             "format": "json",
             "timespan": timespan,
@@ -159,6 +166,24 @@ class GdeltClient:
             articles=articles,
             raw_data=raw,
         )
+
+    def fetch_article_list(
+        self, company_name: str, timespan: str = "1m", max_records: int = 25
+    ) -> list[dict[str, Any]]:
+        """English article links for one company, in a single throttled request.
+
+        Each item carries url, title, seendate, domain, language and sourcecountry. GDELT
+        returns no article body, so the text has to be fetched from the url separately.
+        """
+        payload = self.fetch_mode(
+            company_name,
+            "artlist",
+            timespan=timespan,
+            query=f'"{company_name}" sourcelang:english',
+            maxrecords=str(max_records),
+            sort="datedesc",
+        )
+        return payload.get("articles") or []
 
 
 def parse_timeline(payload: dict[str, Any]) -> GdeltTimeline | None:

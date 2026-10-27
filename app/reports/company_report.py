@@ -35,6 +35,11 @@ KPI_LABELS = {
     "gdelt_volume_spike_ratio": "Coverage spike vs. its own average",
     "gdelt_article_count": "GDELT articles sampled",
     "gdelt_tone_days": "Days of tone data",
+    "news_ai_articles_assessed": "News articles about the company (AI-checked, 30 days)",
+    "news_ai_risk_article_count": "Articles reporting a layoff-risk signal",
+    "news_ai_layoff_article_count": "Articles reporting layoffs",
+    "news_ai_risk_article_share_pct": "Share of articles reporting a risk signal",
+    "news_ai_max_risk_severity": "Most severe risk signal reported (0-3)",
     "deal_count": "Large-lot deals disclosed",
     "deal_buy_quantity": "Shares bought in large lots",
     "deal_sell_quantity": "Shares sold in large lots",
@@ -69,6 +74,10 @@ HIGHER_IS_RISKIER = {
     "gdelt_tone_decline",
     "gdelt_volume_spike_ratio",
     "deal_sell_share_pct",
+    "news_ai_risk_article_count",
+    "news_ai_layoff_article_count",
+    "news_ai_risk_article_share_pct",
+    "news_ai_max_risk_severity",
 }
 
 COVERAGE_BANDS = (
