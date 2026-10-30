@@ -78,11 +78,12 @@ def main() -> None:
             f"[{index}/{len(names)}] {name:30} ok    "
             f"found {result['discovered']}, new {result['discovered'] - result['already_seen']}, "
             f"readable {result['text_fetched']}, classified {result['classified']}, "
-            f"risk {result['risk_articles']}"
+            f"risk articles {result['risk_articles']}, new risk events {result['new_risk_events']}"
         )
         for article in result["articles"]:
             if article["is_risk"]:
-                print(f"          ! {article['signal']} (severity {article['severity']}): {article['reason']}")
+                marker = "new event" if article["new_event"] else "same event as before"
+                print(f"          ! {article['signal']} (severity {article['severity']}, {marker}): {article['event']}")
         for note in result.get("notes") or []:
             print(f"          note: {note}")
         if result.get("quota_hit"):

@@ -1,6 +1,7 @@
 from app.sources.news_classifier import (
     ArticleClassification,
     ArticleForClassification,
+    KnownEvent,
     NewsSignalClassifier,
     build_prompt,
     describe_company,
@@ -9,7 +10,17 @@ from app.sources.news_classifier import (
 from app.sources.gemini import GeminiResult
 
 
-def item(index=0, about=True, signal="layoffs", severity=2, confidence="high", reason="Cuts 500 jobs."):
+def item(
+    index=0,
+    about=True,
+    signal="layoffs",
+    severity=2,
+    confidence="high",
+    reason="Cuts 500 jobs.",
+    event="500 jobs cut",
+    event_ref="new",
+    same_as_index=-1,
+):
     return {
         "index": index,
         "about_company": about,
@@ -17,6 +28,9 @@ def item(index=0, about=True, signal="layoffs", severity=2, confidence="high", r
         "severity": severity,
         "confidence": confidence,
         "reason": reason,
+        "event": event,
+        "event_ref": event_ref,
+        "same_as_index": same_as_index,
     }
 
 
@@ -45,8 +59,62 @@ def test_prompt_strips_closing_tags_so_an_article_cannot_escape_its_block():
 def test_parse_keeps_valid_results():
     results = parse_classifications({"articles": [item()]}, {0})
 
-    assert results[0] == ArticleClassification(0, True, "layoffs", 2, "high", "Cuts 500 jobs.")
+    assert results[0] == ArticleClassification(0, True, "layoffs", 2, "high", "Cuts 500 jobs.", "500 jobs cut")
     assert results[0].is_risk is True
+    assert results[0].event_ref == "new"
+    assert results[0].same_as_index is None
+
+
+def test_regulatory_and_legal_trouble_is_a_risk_signal():
+    results = parse_classifications({"articles": [item(signal="regulatory_legal", severity=1)]}, {0})
+
+    assert results[0].is_risk is True
+
+
+def test_prompt_lists_known_events_or_says_there_are_none():
+    articles = [ArticleForClassification(index=0, title="t", published=None, text="x")]
+
+    assert "None yet." in build_prompt("Ola Electric", articles)
+    prompt = build_prompt(
+        "Ola Electric",
+        articles,
+        [KnownEvent(label="E1", date="2026-10-15", signal="financial_distress", summary="Rs 1,000 crore rights issue")],
+    )
+    assert "[E1] 2026-10-15, financial_distress: Rs 1,000 crore rights issue" in prompt
+
+
+def test_event_ref_must_be_a_label_that_was_sent():
+    data = {"articles": [item(index=0, event_ref="E1"), item(index=1, event_ref="E9")]}
+
+    results = parse_classifications(data, {0, 1}, known_labels={"E1"})
+
+    assert results[0].event_ref == "E1"
+    assert results[1].event_ref == "new"
+
+
+def test_same_as_index_must_point_to_an_earlier_article_and_only_for_new_events():
+    data = {
+        "articles": [
+            item(index=0),
+            item(index=1, same_as_index=0),  # valid: earlier article, new event
+            item(index=2, same_as_index=3),  # points forward
+            item(index=3, same_as_index=3),  # points at itself
+            item(index=4, event_ref="E1", same_as_index=0),  # already matched a known event
+        ]
+    }
+
+    results = parse_classifications(data, {0, 1, 2, 3, 4}, known_labels={"E1"})
+
+    assert results[1].same_as_index == 0
+    assert results[2].same_as_index is None
+    assert results[3].same_as_index is None
+    assert results[4].same_as_index is None
+
+
+def test_an_article_not_about_the_company_has_no_event_description():
+    results = parse_classifications({"articles": [item(about=False, event="something")]}, {0})
+
+    assert results[0].event == ""
 
 
 def test_parse_drops_malformed_unexpected_and_duplicate_items():

@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -22,7 +23,9 @@ from app.sources.gdelt import GdeltClient, GdeltError, parse_gdelt_date
 from app.sources.gemini import GeminiClient, GeminiError, GeminiRateLimitError
 from app.sources.news_classifier import (
     RISK_SIGNALS,
+    ArticleClassification,
     ArticleForClassification,
+    KnownEvent,
     NewsSignalClassifier,
     describe_company,
 )
@@ -38,10 +41,17 @@ WINDOW_DAYS = 30
 
 DISCOVERY_MODES = ("auto", "gdelt", "newsapi")
 
+# Known events shown to Gemini so a re-reported story is matched rather than counted again.
+# Capped to keep the prompt small.
+MAX_KNOWN_EVENTS = 30
+
+# Articles measure how much coverage there was; events measure how many distinct things
+# happened. Four outlets reporting one rights issue are four articles but one event.
 UNITS = {
     "news_ai_articles_assessed": "count",
     "news_ai_risk_article_count": "count",
-    "news_ai_layoff_article_count": "count",
+    "news_ai_risk_event_count": "count",
+    "news_ai_layoff_event_count": "count",
     "news_ai_risk_article_share_pct": "percent",
     "news_ai_max_risk_severity": "severity",
 }
@@ -254,17 +264,22 @@ def collect_news_signals_for_company(
             )
             for offset, (article, text) in enumerate(batch)
         ]
+        # Reload after every batch, so a story covered in an earlier batch is already known.
+        db.flush()
+        known_events, label_to_event_id = load_known_events(db, company.id, source.id)
         try:
             with step("3. Gemini judges {count} articles", count=len(inputs), model=classifier.model):
-                results = classifier.classify(company_description, inputs)
+                results = classifier.classify(company_description, inputs, known_events)
                 for offset, (article, _) in enumerate(batch):
                     if offset in results:
                         verdict = results[offset]
                         note(
-                            "Judged: {title} -> {signal} (severity {severity})",
+                            "Judged: {title} -> {signal} (severity {severity}), event {event_ref}",
                             title=article.title,
                             signal=verdict.signal if verdict.about_company else "not about the company",
                             severity=verdict.severity,
+                            event_ref=verdict.event_ref,
+                            event=verdict.event,
                             reason=verdict.reason,
                         )
         except GeminiRateLimitError as exc:
@@ -275,12 +290,16 @@ def collect_news_signals_for_company(
             notes.append(f"Gemini batch failed: {exc}")
             continue
 
+        batch_event_ids: dict[int, str] = {}
         for offset, (article, text) in enumerate(batch):
             classification = results.get(offset)
             if classification is None:
                 notes.append(f"Gemini returned no usable result for: {article.title[:80]}")
                 continue
-            payload = classification.as_dict()
+            event_id, is_new_event = assign_event_id(classification, label_to_event_id, batch_event_ids)
+            if event_id:
+                batch_event_ids[offset] = event_id
+            payload = {**classification.as_dict(), "event_id": event_id, "new_event": is_new_event}
             store_classified(db, company, source, run, article, payload, classifier.model, text)
             classified_payloads.append({"title": article.title, "url": article.url, **payload})
 
@@ -321,6 +340,7 @@ def collect_news_signals_for_company(
         "fetch_statuses": dict(fetch_statuses),
         "classified": len(classified_payloads),
         "risk_articles": sum(1 for item in classified_payloads if item["is_risk"]),
+        "new_risk_events": sum(1 for item in classified_payloads if item["is_risk"] and item["new_event"]),
         "quota_hit": quota_hit,
         "notes": notes,
     }
@@ -338,6 +358,60 @@ def collect_news_signals_for_company(
         "articles": classified_payloads,
         "kpis": kpis,
     }
+
+
+def load_known_events(
+    db: Session, company_id: int, source_id: int, limit: int = MAX_KNOWN_EVENTS
+) -> tuple[list[KnownEvent], dict[str, str]]:
+    """The company's most recent distinct events, labelled E1, E2... for the prompt.
+
+    Returns the events and a map from each label back to the stored event id.
+    """
+    statement = (
+        select(SourceRecord.published_at, SourceRecord.normalized_data)
+        .where(
+            SourceRecord.company_id == company_id,
+            SourceRecord.source_id == source_id,
+            SourceRecord.record_type == CLASSIFIED_RECORD_TYPE,
+        )
+        .order_by(SourceRecord.published_at.desc())
+    )
+    events: list[KnownEvent] = []
+    label_to_event_id: dict[str, str] = {}
+    seen_ids: set[str] = set()
+    for published, data in db.execute(statement).all():
+        event_id = (data or {}).get("event_id")
+        if not event_id or event_id in seen_ids or not data.get("event"):
+            continue
+        seen_ids.add(event_id)
+        label = f"E{len(events) + 1}"
+        events.append(
+            KnownEvent(
+                label=label,
+                date=published.date().isoformat() if published else None,
+                signal=data.get("signal") or "neutral",
+                summary=data["event"],
+            )
+        )
+        label_to_event_id[label] = event_id
+        if len(events) >= limit:
+            break
+    return events, label_to_event_id
+
+
+def assign_event_id(
+    classification: ArticleClassification,
+    label_to_event_id: dict[str, str],
+    batch_event_ids: dict[int, str],
+) -> tuple[str | None, bool]:
+    """Reuse a known event's id, or an earlier article's in this batch, or mint a new one."""
+    if not classification.about_company:
+        return None, False
+    if classification.event_ref in label_to_event_id:
+        return label_to_event_id[classification.event_ref], False
+    if classification.same_as_index is not None and classification.same_as_index in batch_event_ids:
+        return batch_event_ids[classification.same_as_index], False
+    return uuid.uuid4().hex[:16], True
 
 
 def seen_urls(db: Session, company_id: int, source_id: int) -> set[str]:
@@ -437,28 +511,35 @@ def compute_window_kpis(db: Session, company_id: int, source_id: int) -> tuple[d
     The window ends at the newest article's publication date rather than at collection
     time, so the KPI only contains what was public on its own date.
     """
-    statement = select(SourceRecord.published_at, SourceRecord.normalized_data).where(
+    statement = select(SourceRecord.published_at, SourceRecord.url, SourceRecord.normalized_data).where(
         SourceRecord.company_id == company_id,
         SourceRecord.source_id == source_id,
         SourceRecord.record_type == CLASSIFIED_RECORD_TYPE,
         SourceRecord.published_at.is_not(None),
     )
-    rows = [(ensure_utc(published), data or {}) for published, data in db.execute(statement).all()]
+    rows = [(ensure_utc(published), url, data or {}) for published, url, data in db.execute(statement).all()]
     if not rows:
         return {}, {}
 
-    end = max(published for published, _ in rows)
+    end = max(published for published, _, _ in rows)
     start = end - timedelta(days=WINDOW_DAYS)
-    in_window = [data for published, data in rows if start <= published <= end]
+    # Articles stored before event tracking existed have no event id; each counts as its own.
+    in_window = [
+        {**data, "_event_key": data.get("event_id") or url}
+        for published, url, data in rows
+        if start <= published <= end
+    ]
 
     about = [data for data in in_window if data.get("about_company")]
     risk = [data for data in about if data.get("signal") in RISK_SIGNALS and (data.get("severity") or 0) > 0]
-    layoffs = [data for data in risk if data.get("signal") == "layoffs"]
+    risk_events = {data["_event_key"] for data in risk}
+    layoff_events = {data["_event_key"] for data in risk if data.get("signal") == "layoffs"}
 
     kpis: dict[str, float] = {
         "news_ai_articles_assessed": float(len(about)),
         "news_ai_risk_article_count": float(len(risk)),
-        "news_ai_layoff_article_count": float(len(layoffs)),
+        "news_ai_risk_event_count": float(len(risk_events)),
+        "news_ai_layoff_event_count": float(len(layoff_events)),
         "news_ai_max_risk_severity": float(max((data["severity"] for data in risk), default=0)),
     }
     if about:

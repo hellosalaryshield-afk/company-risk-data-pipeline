@@ -148,6 +148,7 @@ class NewsSignalCollectionResponse(BaseModel):
     fetch_statuses: dict[str, int] = {}
     classified: int | None = None
     risk_articles: int | None = None
+    new_risk_events: int | None = None
     quota_hit: bool | None = None
     notes: list[str] = []
     articles: list[dict] = []

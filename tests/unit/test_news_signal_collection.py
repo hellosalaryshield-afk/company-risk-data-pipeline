@@ -46,7 +46,12 @@ class FakeFetcher:
 
 
 class FakeClassifier:
-    """Labels each article by the signal encoded in its title, e.g. 'Article 1' -> SIGNALS[1]."""
+    """Stands in for Gemini, keyed by the number in each article's title ('Article 3').
+
+    signals maps that number to (signal, about_company, severity) and optionally a fourth
+    item, the event description. Like Gemini, it points an article at a known event with
+    the same description, or at an earlier article in the batch reporting the same one.
+    """
 
     model = "fake-model"
 
@@ -54,16 +59,26 @@ class FakeClassifier:
         self.signals = signals
         self.fail_with = fail_with
         self.calls = 0
+        self.known_events_seen = []
 
-    def classify(self, company, articles):
+    def classify(self, company, articles, known_events=None):
         self.calls += 1
+        self.known_events_seen.append(list(known_events or []))
         if self.fail_with:
             raise self.fail_with
+        known_by_summary = {event.summary: event.label for event in known_events or []}
+        batch_events: dict[str, int] = {}
         results = {}
         for item in articles:
             number = int(item.title.split()[-1])
-            signal, about, severity = self.signals[number]
-            results[item.index] = ArticleClassification(item.index, about, signal, severity, "high", f"reason {number}")
+            signal, about, severity, *rest = self.signals[number]
+            event = rest[0] if rest else f"event {number}"
+            event_ref = known_by_summary.get(event, "new")
+            same_as = batch_events.get(event) if event_ref == "new" else None
+            batch_events.setdefault(event, item.index)
+            results[item.index] = ArticleClassification(
+                item.index, about, signal, severity, "high", f"reason {number}", event, event_ref, same_as
+            )
         return results
 
 
@@ -103,7 +118,8 @@ def test_classifies_articles_and_stores_kpis(db_session, zepto):
     assert result["kpis"] == {
         "news_ai_articles_assessed": 3.0,
         "news_ai_risk_article_count": 2.0,
-        "news_ai_layoff_article_count": 1.0,
+        "news_ai_risk_event_count": 2.0,
+        "news_ai_layoff_event_count": 1.0,
         "news_ai_max_risk_severity": 3.0,
         "news_ai_risk_article_share_pct": 66.67,
     }
@@ -189,6 +205,76 @@ def test_the_same_story_under_different_urls_is_counted_once(db_session, zepto):
     assert second["kpis"]["news_ai_risk_article_count"] == 1.0
     stored = db_session.session.query(SourceRecord).filter_by(record_type=CLASSIFIED_RECORD_TYPE).one()
     assert len(stored.raw_data["text_hash"]) == 64
+
+
+RIGHTS_ISSUE = "Rs 1,000 crore rights issue"
+
+
+def test_one_event_reported_by_several_outlets_in_one_batch_counts_once(db_session, zepto):
+    classifier = FakeClassifier(
+        {
+            1: ("financial_distress", True, 1, RIGHTS_ISSUE),
+            2: ("financial_distress", True, 1, RIGHTS_ISSUE),
+            3: ("leadership_exit", True, 1, "CBO leaves"),
+        }
+    )
+
+    result = run(db_session, [article(1, 10), article(2, 11), article(3, 12)], classifier)
+
+    assert result["risk_articles"] == 3
+    assert result["new_risk_events"] == 2
+    assert result["kpis"]["news_ai_risk_article_count"] == 3.0
+    assert result["kpis"]["news_ai_risk_event_count"] == 2.0
+    first, second = (a for a in result["articles"] if a["event"] == RIGHTS_ISSUE)
+    assert first["event_id"] == second["event_id"]
+    assert first["new_event"] is True and second["new_event"] is False
+
+
+def test_a_known_event_is_shown_to_gemini_and_matched_across_batches_and_runs(db_session, zepto):
+    classifier = FakeClassifier({n: ("financial_distress", True, 1, RIGHTS_ISSUE) for n in range(1, 5)})
+
+    first = run(db_session, [article(1, 10), article(2, 11), article(3, 12)], classifier, batch_size=1)
+    second = run(db_session, [article(4, 13)], classifier)
+
+    # Batch 1 saw no known events; later batches and the next run were shown the rights issue.
+    assert classifier.known_events_seen[0] == []
+    assert [e.summary for e in classifier.known_events_seen[1]] == [RIGHTS_ISSUE]
+    assert classifier.known_events_seen[3][0].label == "E1"
+    assert first["new_risk_events"] == 1
+    assert second["new_risk_events"] == 0
+    assert second["kpis"]["news_ai_risk_article_count"] == 4.0
+    assert second["kpis"]["news_ai_risk_event_count"] == 1.0
+
+
+def test_articles_not_about_the_company_get_no_event(db_session, zepto):
+    result = run(db_session, [article(1, 10)], FakeClassifier({1: ("neutral", False, 0)}))
+
+    assert result["articles"][0]["event_id"] is None
+    assert result["articles"][0]["new_event"] is False
+
+
+def test_articles_stored_before_event_tracking_count_as_their_own_events(db_session, zepto):
+    from app.pipeline.news_signal_collection import compute_window_kpis, get_or_create_news_signal_source
+
+    source = get_or_create_news_signal_source(db_session.session)
+    for n in (1, 2):
+        db_session.session.add(
+            SourceRecord(
+                company_id=zepto.id,
+                source_id=source.id,
+                record_type=CLASSIFIED_RECORD_TYPE,
+                url=f"https://old.example/{n}",
+                published_at=datetime(2026, 10, n, tzinfo=UTC),
+                raw_data={},
+                normalized_data={"about_company": True, "signal": "layoffs", "severity": 2},
+            )
+        )
+    db_session.session.flush()
+
+    kpis, _ = compute_window_kpis(db_session.session, zepto.id, source.id)
+
+    assert kpis["news_ai_risk_event_count"] == 2.0
+    assert kpis["news_ai_layoff_event_count"] == 2.0
 
 
 def test_quota_stops_classification_and_leaves_articles_for_the_next_run(db_session, zepto):
