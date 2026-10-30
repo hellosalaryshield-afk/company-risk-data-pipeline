@@ -8,6 +8,7 @@ from app.companies.repository import CompanyRepository
 from app.companies.resolver import CompanyResolver
 from app.config.settings import Settings
 from app.models.collection import CollectionRun, SourceRecord
+from app.models.company import Company
 from app.models.source import DataSource
 from app.sources.data_gov_mca import DataGovMcaClient, normalize_mca_record, parse_mca_date
 
@@ -32,11 +33,37 @@ def get_or_create_mca_source(db: Session) -> DataSource:
         base_url="https://api.data.gov.in",
         description="Data.gov.in MCA Company Master Data API.",
         requires_auth=True,
-        known_limitations="Exact-name matching can miss aliases; data freshness depends on Data.gov.in publication schedule.",
+        known_limitations=(
+            "Exact, case-sensitive matching only: a name spelled differently from the registry "
+            "returns nothing, so lookups try the CIN first, then the legal name. Data freshness "
+            "depends on the data.gov.in publication schedule."
+        ),
     )
     db.add(source)
     db.flush()
     return source
+
+
+def lookup_mca_record(client: DataGovMcaClient, company: Company) -> dict | None:
+    """Try the most reliable key first: CIN, then the legal name, then the brand name.
+
+    The API only matches exact names, so a brand like "Zepto" rarely matches on its own,
+    but costs nothing to try after the legal name.
+    """
+    if company.cin:
+        record = client.fetch_by_cin(company.cin)
+        if record:
+            return record
+
+    tried: set[str] = set()
+    for name in (company.legal_name, company.canonical_name):
+        if not name or name.upper() in tried:
+            continue
+        tried.add(name.upper())
+        record = client.fetch_by_name(name)
+        if record:
+            return record
+    return None
 
 
 def collect_mca_for_company(
@@ -60,9 +87,7 @@ def collect_mca_for_company(
         if not settings.data_gov_api_key:
             raise McaCollectionError("DATA_GOV_API_KEY is not configured.")
         try:
-            raw_record = DataGovMcaClient(settings.data_gov_api_key).fetch_company_master_data(
-                resolved.match.legal_name or resolved.match.canonical_name
-            )
+            raw_record = lookup_mca_record(DataGovMcaClient(settings.data_gov_api_key), resolved.match)
         except httpx.TimeoutException as exc:
             return record_mca_source_failure(
                 db=db,

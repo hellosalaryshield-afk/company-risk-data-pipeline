@@ -20,11 +20,11 @@ def test_collect_mca_for_company_stores_source_record_and_updates_company(db_ses
         aliases=["Razorpay Software Private Limited"],
     )
     raw_record = {
-        "cin": "U72200KA2013PTC071109",
-        "company_name": "RAZORPAY SOFTWARE PRIVATE LIMITED",
-        "date_of_incorporation": "2013-09-18",
-        "company_status": "Active",
-        "company_category": "Company limited by shares",
+        "CIN": "U72200KA2013PTC071109",
+        "CompanyName": "RAZORPAY SOFTWARE PRIVATE LIMITED",
+        "CompanyRegistrationdate_date": "2013-09-18",
+        "CompanyStatus": "Active",
+        "CompanyCategory": "Company limited by shares",
     }
 
     result = collect_mca_for_company(
@@ -65,7 +65,7 @@ def test_collect_mca_records_source_failure_on_timeout(db_session, monkeypatch):
     def raise_timeout(self, company_name):
         raise httpx.ReadTimeout("timeout")
 
-    monkeypatch.setattr(mca_collection.DataGovMcaClient, "fetch_company_master_data", raise_timeout)
+    monkeypatch.setattr(mca_collection.DataGovMcaClient, "fetch_by_name", raise_timeout)
 
     result = collect_mca_for_company(
         db=db_session.session,
@@ -78,3 +78,42 @@ def test_collect_mca_records_source_failure_on_timeout(db_session, monkeypatch):
     assert result["record_found"] is False
     assert result["collection_run_id"] is not None
     assert "timed out" in result["message"]
+
+
+class RecordingClient:
+    def __init__(self, by_cin=None, by_name=None):
+        self.by_cin = by_cin or {}
+        self.by_name = by_name or {}
+        self.calls = []
+
+    def fetch_by_cin(self, cin):
+        self.calls.append(("cin", cin))
+        return self.by_cin.get(cin)
+
+    def fetch_by_name(self, name):
+        self.calls.append(("name", name))
+        return self.by_name.get(name)
+
+
+def test_lookup_tries_cin_then_legal_name_then_brand(db_session):
+    company = db_session.create_company(
+        canonical_name="Zepto", aliases=[], legal_name="Kiranakart Technologies Private Limited", cin="U00000KA2020PTC000000"
+    )
+    client = RecordingClient(by_name={"Zepto": {"CIN": "X"}})
+
+    record = mca_collection.lookup_mca_record(client, company)
+
+    assert record == {"CIN": "X"}
+    assert client.calls == [
+        ("cin", "U00000KA2020PTC000000"),
+        ("name", "Kiranakart Technologies Private Limited"),
+        ("name", "Zepto"),
+    ]
+
+
+def test_lookup_stops_at_the_first_match_and_skips_a_repeated_name(db_session):
+    company = db_session.create_company(canonical_name="Infosys", aliases=[], legal_name="INFOSYS")
+    client = RecordingClient(by_name={})
+
+    assert mca_collection.lookup_mca_record(client, company) is None
+    assert client.calls == [("name", "INFOSYS")]
