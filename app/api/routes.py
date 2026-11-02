@@ -187,6 +187,7 @@ def collect_company(payload: CompanyCollectionRequest, db: Session = Depends(get
         page_size=payload.page_size,
         range_period=payload.range_period,
         include_metered_sources=payload.include_metered_sources,
+        include_slow_sources=payload.include_slow_sources,
     )
     return CompanyCollectionResponse(**result)
 

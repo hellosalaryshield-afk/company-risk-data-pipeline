@@ -58,6 +58,15 @@ def test_company_collection_endpoint_runs_applicable_sources(client, db_session,
     assert body["kpis"]["market_price"] == pytest.approx(2255.5)
 
 
+def test_company_collection_endpoint_honours_include_slow_sources(client, db_session, stub_sources):
+    db_session.create_company(canonical_name="Tata Consultancy Services", aliases=["TCS"], ticker="TCS", exchange="NSE")
+
+    response = client.post("/collections/company", json={"company_name": "TCS", "include_slow_sources": False})
+    statuses = {source["source"]: source["status"] for source in response.json()["sources"]}
+
+    assert statuses["gdelt_doc"] == "skipped"
+
+
 def test_company_collection_endpoint_returns_candidates_when_ambiguous(client, db_session, stub_sources):
     db_session.create_company(canonical_name="Tata Consultancy Services", aliases=["Tata Consultancy"])
 
