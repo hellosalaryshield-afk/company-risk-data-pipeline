@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.companies.repository import CompanyRepository
 from app.companies.resolver import CompanyResolver
+from app.companies.registry_search import as_api_record, find_in_registry
 from app.config.settings import Settings
 from app.models.collection import CollectionRun, SourceRecord
 from app.models.company import Company
@@ -83,7 +84,24 @@ def collect_mca_for_company(
             "candidates": [candidate.canonical_name for candidate in resolved.candidates],
         }
 
+    matched_via = "provided"
+    registry_candidates: list[str] = []
     if raw_record is MISSING_RECORD:
+        # Our bulk copy first: no network, and it matches renamed and re-suffixed companies
+        # that the API's exact filter misses. The API covers companies registered since.
+        company = resolved.match
+        registry = find_in_registry(
+            db,
+            [company.legal_name, company.canonical_name, *(alias.alias for alias in company.aliases)],
+            cin=company.cin,
+        )
+        registry_candidates = [candidate.company_name for candidate in registry.candidates]
+        if registry.status == "matched":
+            raw_record = as_api_record(registry.company)
+            matched_via = f"registry:{registry.matched_via}"
+
+    if raw_record is MISSING_RECORD:
+        matched_via = "api"
         if not settings.data_gov_api_key:
             raise McaCollectionError("DATA_GOV_API_KEY is not configured.")
         try:
@@ -125,7 +143,12 @@ def collect_mca_for_company(
     if not raw_record:
         run.status = "completed"
         run.completed_at = datetime.now(UTC)
-        run.extra_metadata = {**run.extra_metadata, "found": False}
+        run.extra_metadata = {
+            **run.extra_metadata,
+            "found": False,
+            "matched_via": matched_via,
+            "registry_candidates": registry_candidates,
+        }
         db.commit()
         return {
             "status": "completed",
@@ -133,6 +156,8 @@ def collect_mca_for_company(
             "collection_run_id": run.id,
             "source": MCA_SOURCE_NAME,
             "record_found": False,
+            "matched_via": None,
+            "registry_candidates": registry_candidates,
             "mca_record": None,
         }
 
@@ -163,7 +188,7 @@ def collect_mca_for_company(
 
     run.status = "completed"
     run.completed_at = datetime.now(UTC)
-    run.extra_metadata = {**run.extra_metadata, "found": True}
+    run.extra_metadata = {**run.extra_metadata, "found": True, "matched_via": matched_via}
     db.commit()
 
     return {
@@ -172,6 +197,7 @@ def collect_mca_for_company(
         "collection_run_id": run.id,
         "source": MCA_SOURCE_NAME,
         "record_found": True,
+        "matched_via": matched_via,
         "mca_record": normalized,
     }
 
