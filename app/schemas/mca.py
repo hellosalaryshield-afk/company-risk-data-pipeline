@@ -15,4 +15,6 @@ class McaCollectionResponse(BaseModel):
     collection_run_id: int | None = None
     source: str | None = None
     record_found: bool | None = None
+    matched_via: str | None = None
+    registry_candidates: list[str] = []
     mca_record: dict | None = None

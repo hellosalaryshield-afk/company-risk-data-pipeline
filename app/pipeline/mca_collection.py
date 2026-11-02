@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.companies.repository import CompanyRepository
 from app.companies.resolver import CompanyResolver
+from app.companies.registry_search import as_api_record, find_in_registry
 from app.config.settings import Settings
 from app.models.collection import CollectionRun, SourceRecord
+from app.models.company import Company
 from app.models.source import DataSource
 from app.sources.data_gov_mca import DataGovMcaClient, normalize_mca_record, parse_mca_date
 
@@ -32,11 +34,37 @@ def get_or_create_mca_source(db: Session) -> DataSource:
         base_url="https://api.data.gov.in",
         description="Data.gov.in MCA Company Master Data API.",
         requires_auth=True,
-        known_limitations="Exact-name matching can miss aliases; data freshness depends on Data.gov.in publication schedule.",
+        known_limitations=(
+            "Exact, case-sensitive matching only: a name spelled differently from the registry "
+            "returns nothing, so lookups try the CIN first, then the legal name. Data freshness "
+            "depends on the data.gov.in publication schedule."
+        ),
     )
     db.add(source)
     db.flush()
     return source
+
+
+def lookup_mca_record(client: DataGovMcaClient, company: Company) -> dict | None:
+    """Try the most reliable key first: CIN, then the legal name, then the brand name.
+
+    The API only matches exact names, so a brand like "Zepto" rarely matches on its own,
+    but costs nothing to try after the legal name.
+    """
+    if company.cin:
+        record = client.fetch_by_cin(company.cin)
+        if record:
+            return record
+
+    tried: set[str] = set()
+    for name in (company.legal_name, company.canonical_name):
+        if not name or name.upper() in tried:
+            continue
+        tried.add(name.upper())
+        record = client.fetch_by_name(name)
+        if record:
+            return record
+    return None
 
 
 def collect_mca_for_company(
@@ -56,13 +84,28 @@ def collect_mca_for_company(
             "candidates": [candidate.canonical_name for candidate in resolved.candidates],
         }
 
+    matched_via = "provided"
+    registry_candidates: list[str] = []
     if raw_record is MISSING_RECORD:
+        # Our bulk copy first: no network, and it matches renamed and re-suffixed companies
+        # that the API's exact filter misses. The API covers companies registered since.
+        company = resolved.match
+        registry = find_in_registry(
+            db,
+            [company.legal_name, company.canonical_name, *(alias.alias for alias in company.aliases)],
+            cin=company.cin,
+        )
+        registry_candidates = [candidate.company_name for candidate in registry.candidates]
+        if registry.status == "matched":
+            raw_record = as_api_record(registry.company)
+            matched_via = f"registry:{registry.matched_via}"
+
+    if raw_record is MISSING_RECORD:
+        matched_via = "api"
         if not settings.data_gov_api_key:
             raise McaCollectionError("DATA_GOV_API_KEY is not configured.")
         try:
-            raw_record = DataGovMcaClient(settings.data_gov_api_key).fetch_company_master_data(
-                resolved.match.legal_name or resolved.match.canonical_name
-            )
+            raw_record = lookup_mca_record(DataGovMcaClient(settings.data_gov_api_key), resolved.match)
         except httpx.TimeoutException as exc:
             return record_mca_source_failure(
                 db=db,
@@ -100,7 +143,12 @@ def collect_mca_for_company(
     if not raw_record:
         run.status = "completed"
         run.completed_at = datetime.now(UTC)
-        run.extra_metadata = {**run.extra_metadata, "found": False}
+        run.extra_metadata = {
+            **run.extra_metadata,
+            "found": False,
+            "matched_via": matched_via,
+            "registry_candidates": registry_candidates,
+        }
         db.commit()
         return {
             "status": "completed",
@@ -108,6 +156,8 @@ def collect_mca_for_company(
             "collection_run_id": run.id,
             "source": MCA_SOURCE_NAME,
             "record_found": False,
+            "matched_via": None,
+            "registry_candidates": registry_candidates,
             "mca_record": None,
         }
 
@@ -138,7 +188,7 @@ def collect_mca_for_company(
 
     run.status = "completed"
     run.completed_at = datetime.now(UTC)
-    run.extra_metadata = {**run.extra_metadata, "found": True}
+    run.extra_metadata = {**run.extra_metadata, "found": True, "matched_via": matched_via}
     db.commit()
 
     return {
@@ -147,6 +197,7 @@ def collect_mca_for_company(
         "collection_run_id": run.id,
         "source": MCA_SOURCE_NAME,
         "record_found": True,
+        "matched_via": matched_via,
         "mca_record": normalized,
     }
 
