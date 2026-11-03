@@ -9,11 +9,13 @@ from app.pipeline.gdelt_collection import GdeltCollectionError, collect_gdelt_fo
 from app.pipeline.market_collection import collect_market_for_company
 from app.pipeline.mca_collection import McaCollectionError, collect_mca_for_company
 from app.pipeline.news_collection import NewsCollectionError, collect_news_for_company
+from app.pipeline.news_signal_collection import NewsSignalCollectionError, collect_news_signals_for_company
 from app.pipeline.source_selection import (
     ALL_SOURCES,
     GDELT_SOURCE,
     MARKET_SOURCE,
     MCA_SOURCE,
+    NEWS_SIGNALS_SOURCE,
     NEWS_SOURCE,
     WORKPLACE_SOURCE,
     is_metered,
@@ -188,9 +190,17 @@ def run_source(
             result = collect_workplace_for_company(db=db, query=company_name, settings=settings)
         elif source_name == GDELT_SOURCE:
             result = collect_gdelt_for_company(db=db, query=company_name, timespan=gdelt_timespan)
+        elif source_name == NEWS_SIGNALS_SOURCE:
+            result = collect_news_signals_for_company(db=db, query=company_name, settings=settings)
         else:
             return {"source": source_name, "status": "error", "message": f"Unknown source {source_name}."}
-    except (NewsCollectionError, McaCollectionError, WorkplaceCollectionError, GdeltCollectionError) as exc:
+    except (
+        NewsCollectionError,
+        McaCollectionError,
+        WorkplaceCollectionError,
+        GdeltCollectionError,
+        NewsSignalCollectionError,
+    ) as exc:
         db.rollback()
         return {"source": source_name, "status": "not_configured", "message": str(exc)}
     except Exception as exc:  # noqa: BLE001 - one bad source must not stop the rest

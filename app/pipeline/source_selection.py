@@ -12,6 +12,7 @@ MCA_SOURCE = "data_gov_mca_company_master"
 MARKET_SOURCE = "yahoo_finance_chart"
 WORKPLACE_SOURCE = "apify_glassdoor_company_search"
 GDELT_SOURCE = "gdelt_doc"
+NEWS_SIGNALS_SOURCE = "gemini_news_signals"
 
 INDIA_SEGMENTS = (INDIA_LISTED, INDIA_UNLISTED_FUNDED, INDIA_UNLISTED_NON_FUNDED)
 FOREIGN_SEGMENTS = (FOREIGN_LISTED, FOREIGN_UNLISTED_FUNDED, FOREIGN_UNLISTED_NON_FUNDED)
@@ -25,21 +26,22 @@ METERED_SOURCES = frozenset({WORKPLACE_SOURCE})
 # seconds and each company needs three calls, so including it adds around 25 seconds to a
 # synchronous request. A public-facing call should leave it out and read the values that
 # the scheduled batch collector already stored.
-SLOW_SOURCES = frozenset({GDELT_SOURCE})
+# The Gemini news signals fetch every article page and wait on GDELT, so they belong here too.
+SLOW_SOURCES = frozenset({GDELT_SOURCE, NEWS_SIGNALS_SOURCE})
 
 # Which sources are worth calling for each segment. A source is listed only where it can
 # actually return company-level data, so the orchestrator does not waste calls or record
 # misleading failures. See docs/source-feasibility.md for the evidence behind each row.
 SEGMENT_SOURCES: dict[str | None, tuple[str, ...]] = {
-    INDIA_LISTED: (NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE),
-    INDIA_UNLISTED_FUNDED: (NEWS_SOURCE, MCA_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE),
-    INDIA_UNLISTED_NON_FUNDED: (NEWS_SOURCE, MCA_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE),
-    FOREIGN_LISTED: (NEWS_SOURCE, MARKET_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE),
-    FOREIGN_UNLISTED_FUNDED: (NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE),
-    FOREIGN_UNLISTED_NON_FUNDED: (NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE),
+    INDIA_LISTED: (NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
+    INDIA_UNLISTED_FUNDED: (NEWS_SOURCE, MCA_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
+    INDIA_UNLISTED_NON_FUNDED: (NEWS_SOURCE, MCA_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
+    FOREIGN_LISTED: (NEWS_SOURCE, MARKET_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
+    FOREIGN_UNLISTED_FUNDED: (NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
+    FOREIGN_UNLISTED_NON_FUNDED: (NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
     # Segment could not be determined. News and workplace work from the company name alone,
     # so they are still safe to run; the rest need the segment to be known first.
-    None: (NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE),
+    None: (NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
 }
 
 SKIP_REASONS = {
@@ -47,9 +49,17 @@ SKIP_REASONS = {
     MARKET_SOURCE: "Yahoo Finance market data covers listed companies only.",
     WORKPLACE_SOURCE: "Glassdoor workplace data applies to all segments.",
     GDELT_SOURCE: "GDELT news tone applies to all segments.",
+    NEWS_SIGNALS_SOURCE: "Gemini news signals apply to all segments.",
 }
 
-ALL_SOURCES: tuple[str, ...] = (NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE)
+ALL_SOURCES: tuple[str, ...] = (
+    NEWS_SOURCE,
+    MCA_SOURCE,
+    MARKET_SOURCE,
+    WORKPLACE_SOURCE,
+    GDELT_SOURCE,
+    NEWS_SIGNALS_SOURCE,
+)
 
 
 def sources_for_segment(

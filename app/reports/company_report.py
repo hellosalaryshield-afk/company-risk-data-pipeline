@@ -9,7 +9,7 @@ from app.models.collection import CollectionRun, KpiObservation, SourceRecord
 from app.models.company import Company
 from app.models.source import DataSource
 from app.pipeline.macro_collection import MACRO_RECORD_TYPE, latest_macro_snapshot
-from app.pipeline.source_selection import sources_for_segment
+from app.pipeline.source_selection import is_metered, sources_for_segment
 from app.reports.peer_context import build_peer_context
 from app.sources.workplace_signals import LOWER_IS_RISKIER
 
@@ -267,6 +267,20 @@ def plain_language_notes(
     return notes
 
 
+def applicable_sources(segment: str | None, health: list[dict]) -> tuple[str, ...]:
+    """Sources a company's coverage is measured against.
+
+    A paid source counts only once it has actually been run for this company. Otherwise
+    a source that is switched off to save money would lower every company's coverage.
+    """
+    ran = {item["name"] for item in health if item["status"] != "never_run"}
+    return tuple(
+        source
+        for source in sources_for_segment(segment)
+        if not is_metered(source) or source in ran
+    )
+
+
 def build_company_report(db: Session, company: Company, range_label: str = "last collection window") -> dict:
     repository = CompanyRepository(db)
     classification = repository.classify_segment(company)
@@ -274,7 +288,7 @@ def build_company_report(db: Session, company: Company, range_label: str = "last
 
     kpis = latest_kpis(db, company.id)
     health = source_health(db, company.id)
-    applicable = sources_for_segment(classification.segment)
+    applicable = applicable_sources(classification.segment, health)
     succeeded = [
         item for item in health if item["name"] in applicable and item["status"] == "completed" and item["records_stored"]
     ]

@@ -5,6 +5,14 @@ from app.pipeline.company_collection import collect_company_data
 from app.pipeline.news_collection import NewsCollectionError
 
 
+@pytest.fixture(autouse=True)
+def no_live_news_signals(monkeypatch):
+    """The Gemini news source would reach GDELT, publishers and Gemini. Keep every test offline."""
+    monkeypatch.setattr(
+        company_collection, "collect_news_signals_for_company", lambda **kwargs: {"status": "completed", "kpis": {}}
+    )
+
+
 class SettingsStub:
     news_api_key = "test-key"
     data_gov_api_key = "test-key"
@@ -53,7 +61,7 @@ def test_listed_company_runs_every_free_source(db_session, stub_sources):
     assert result["segment"]["segment"] == "INDIA_LISTED"
     # Glassdoor is metered, so it is absent unless the caller opts in.
     assert stub_sources == ["news", "mca", "market", "gdelt"]
-    assert result["sources_succeeded"] == ["newsapi", "yahoo_finance_chart", "gdelt_doc"]
+    assert result["sources_succeeded"] == ["newsapi", "yahoo_finance_chart", "gdelt_doc", "gemini_news_signals"]
     assert result["sources_failed"] == ["data_gov_mca_company_master"]
     assert result["kpis"] == {
         "layoff_news_count": 1.0,

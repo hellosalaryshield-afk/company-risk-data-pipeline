@@ -7,6 +7,14 @@ from app.models.source import DataSource
 from app.pipeline import company_collection
 
 
+@pytest.fixture(autouse=True)
+def no_live_news_signals(monkeypatch):
+    """The Gemini news source would reach GDELT, publishers and Gemini. Keep every test offline."""
+    monkeypatch.setattr(
+        company_collection, "collect_news_signals_for_company", lambda **kwargs: {"status": "completed", "kpis": {}}
+    )
+
+
 @pytest.fixture
 def client(db_session):
     app.dependency_overrides[get_db_session] = lambda: db_session.session

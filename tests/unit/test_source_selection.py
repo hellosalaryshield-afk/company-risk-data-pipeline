@@ -8,6 +8,7 @@ from app.pipeline.source_selection import (
     GDELT_SOURCE,
     MARKET_SOURCE,
     MCA_SOURCE,
+    NEWS_SIGNALS_SOURCE,
     NEWS_SOURCE,
     WORKPLACE_SOURCE,
     is_metered,
@@ -26,6 +27,7 @@ def test_india_listed_gets_every_source():
         MARKET_SOURCE,
         WORKPLACE_SOURCE,
         GDELT_SOURCE,
+        NEWS_SIGNALS_SOURCE,
     }
 
 
@@ -44,22 +46,22 @@ def test_foreign_listed_skips_mca():
 
 
 def test_foreign_unlisted_gets_news_and_workplace():
-    assert set(sources_for_segment(FOREIGN_UNLISTED_NON_FUNDED)) == {NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE}
+    assert set(sources_for_segment(FOREIGN_UNLISTED_NON_FUNDED)) == {NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE}
 
 
 def test_undetermined_segment_falls_back_to_name_only_sources():
-    assert set(sources_for_segment(None)) == {NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE}
+    assert set(sources_for_segment(None)) == {NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE}
 
 
 def test_unknown_segment_falls_back_to_name_only_sources():
-    assert set(sources_for_segment("SOMETHING_ELSE")) == {NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE}
+    assert set(sources_for_segment("SOMETHING_ELSE")) == {NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE}
 
 
 def test_metered_sources_are_excluded_when_not_requested():
     without = sources_for_segment(INDIA_LISTED, include_metered=False)
 
     assert WORKPLACE_SOURCE not in without
-    assert set(without) == {NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, GDELT_SOURCE}
+    assert set(without) == {NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE}
 
 
 def test_only_the_glassdoor_actor_is_metered():
@@ -110,3 +112,10 @@ def test_slow_skip_reason_explains_the_batch_alternative():
 
     assert "rate limited" in reason
     assert "batch" in reason
+
+
+def test_gemini_news_signals_apply_everywhere_and_are_slow():
+    for segment in (INDIA_LISTED, INDIA_UNLISTED_FUNDED, FOREIGN_LISTED, FOREIGN_UNLISTED_NON_FUNDED, None):
+        assert NEWS_SIGNALS_SOURCE in sources_for_segment(segment)
+    assert is_slow(NEWS_SIGNALS_SOURCE) is True
+    assert NEWS_SIGNALS_SOURCE not in sources_for_segment(INDIA_LISTED, include_slow=False)

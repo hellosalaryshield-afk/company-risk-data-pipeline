@@ -76,12 +76,13 @@ def test_build_company_report_for_a_listed_company(db_session):
     report = build_company_report(db_session.session, company)
 
     assert report["segment"]["segment"] == "INDIA_LISTED"
+    # Glassdoor is paid and has never run for this company, so it does not count.
     assert set(report["applicable_sources"]) == {
         "newsapi",
         "data_gov_mca_company_master",
         "yahoo_finance_chart",
-        "apify_glassdoor_company_search",
         "gdelt_doc",
+        "gemini_news_signals",
     }
     assert len(report["kpis"]) == 2
     assert any("32.7% below its 52-week high" in note for note in report["notes"])
@@ -154,3 +155,14 @@ def test_report_labels_and_directions_for_gdelt_signals(db_session):
     assert "Average news tone" in html
     assert "Days with negative coverage" in html
     assert "gdelt_avg_tone" not in html
+
+
+def test_a_paid_source_counts_toward_coverage_only_once_it_has_run():
+    from app.reports.company_report import applicable_sources
+
+    never = [{"name": "apify_glassdoor_company_search", "status": "never_run"}]
+    ran = [{"name": "apify_glassdoor_company_search", "status": "completed"}]
+
+    assert "apify_glassdoor_company_search" not in applicable_sources("INDIA_LISTED", never)
+    assert "apify_glassdoor_company_search" in applicable_sources("INDIA_LISTED", ran)
+    assert "gemini_news_signals" in applicable_sources("INDIA_LISTED", never)
