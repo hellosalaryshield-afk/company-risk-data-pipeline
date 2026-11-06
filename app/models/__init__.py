@@ -2,6 +2,7 @@
 
 from app.models.collection import CollectionRun, KpiObservation, SourceRecord
 from app.models.company import Company, CompanyAlias
+from app.models.news_feed import NewsFeedItem
 from app.models.registry import McaCompany
 from app.models.scoring import RiskScore, ScorePeerStat
 from app.models.source import DataSource
@@ -13,6 +14,7 @@ __all__ = [
     "DataSource",
     "KpiObservation",
     "McaCompany",
+    "NewsFeedItem",
     "RiskScore",
     "ScorePeerStat",
     "SourceRecord",

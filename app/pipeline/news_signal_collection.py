@@ -18,6 +18,7 @@ from app.features.point_in_time import ensure_utc
 from app.models.collection import CollectionRun, KpiObservation, SourceRecord
 from app.models.company import Company
 from app.models.source import DataSource
+from app.pipeline.news_feed_collection import search_feed_items
 from app.sources.article_text import ArticleTextFetcher
 from app.sources.gdelt import GdeltClient, GdeltError, parse_gdelt_date
 from app.sources.gemini import GeminiClient, GeminiError, GeminiRateLimitError
@@ -39,7 +40,7 @@ UNREADABLE_RECORD_TYPE = "news_article_unreadable"
 # newest classified article, so earlier runs keep counting toward later windows.
 WINDOW_DAYS = 30
 
-DISCOVERY_MODES = ("auto", "gdelt", "newsapi")
+DISCOVERY_MODES = ("auto", "rss", "gdelt", "newsapi")
 
 # Known events shown to Gemini so a re-reported story is matched rather than counted again.
 # Capped to keep the prompt small.
@@ -102,6 +103,9 @@ def headline_mentions(title: str, names: list[str]) -> bool:
     return any(f" {name} " in normalized_title for name in names if name)
 
 
+TIMESPAN_DAYS = {"1w": 7, "2w": 14, "1m": 30, "2m": 60, "3m": 90}
+
+
 def discover_articles(
     company_name: str,
     settings: Settings,
@@ -109,21 +113,40 @@ def discover_articles(
     max_articles: int = 10,
     discovery: str = "auto",
     headline_names: list[str] | None = None,
+    db: Session | None = None,
 ) -> tuple[list[DiscoveredArticle], list[str]]:
-    """Find candidate article links, GDELT first and NewsAPI as a fallback.
+    """Find candidate article links: stored RSS feed articles first, then GDELT, then NewsAPI.
 
-    GDELT matches a name anywhere in the body, so most of its hits are market roundups that
-    mention the company in passing. Only articles whose headline names the company, or one
-    of its aliases, are kept. NewsAPI already searches headlines only.
+    RSS feeds and GDELT carry no licence restriction on production use; NewsAPI's free
+    tier does, so it is the last resort. GDELT matches a name anywhere in the body, so only
+    articles whose headline names the company, or one of its aliases, are kept from RSS and
+    GDELT alike. NewsAPI already searches headlines only.
 
     Returns the articles and human-readable notes on anything that went wrong, so a run
     can explain where its articles came from.
     """
     notes: list[str] = []
     articles: list[DiscoveredArticle] = []
-    names = [normalize_company_name(name) for name in (headline_names or [company_name])]
+    raw_names = headline_names or [company_name]
+    names = [normalize_company_name(name) for name in raw_names]
 
-    if discovery in ("auto", "gdelt"):
+    if discovery in ("auto", "rss") and db is not None:
+        stored = search_feed_items(db, raw_names, TIMESPAN_DAYS.get(timespan, 30))
+        for item in stored:
+            if headline_mentions(item.title, names):
+                articles.append(
+                    DiscoveredArticle(
+                        url=item.url,
+                        title=item.title,
+                        published_at=item.published_at,
+                        domain=item.publisher,
+                        discovered_via=f"rss:{item.feed}",
+                    )
+                )
+        if discovery == "rss" and not articles:
+            notes.append("No stored RSS feed article names the company in its headline.")
+
+    if not articles and discovery in ("auto", "gdelt"):
         try:
             # Ask for more than needed, since the headline filter drops most of them.
             items = GdeltClient().fetch_article_list(company_name, timespan=timespan, max_records=max_articles * 5)
@@ -222,6 +245,7 @@ def collect_news_signals_for_company(
                 max_articles=max_articles,
                 discovery=discovery,
                 headline_names=[company.canonical_name, *(alias.alias for alias in company.aliases)],
+                db=db,
             )
             note("Found {count} articles", count=len(articles), notes=notes)
 

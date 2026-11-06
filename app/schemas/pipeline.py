@@ -128,7 +128,7 @@ class NewsSignalCollectionRequest(BaseModel):
     company_name: str = Field(min_length=1, max_length=255)
     timespan: str = Field(default="1m", pattern=r"^(1w|2w|1m|2m|3m)$")
     max_articles: int = Field(default=10, ge=1, le=50)
-    discovery: str = Field(default="auto", pattern=r"^(auto|gdelt|newsapi)$")
+    discovery: str = Field(default="auto", pattern=r"^(auto|rss|gdelt|newsapi)$")
 
 
 class NewsSignalCollectionResponse(BaseModel):
