@@ -94,7 +94,9 @@ For each article below, decide:
 - about_company: true only if this company is the main subject of the article, or the article
   reports a specific event at this company. False for market roundups, "stocks in news" lists,
   articles covering many companies, articles that use this company only as an example or a
-  comparison, and articles about a different organisation with a similar name.
+  comparison, and articles about a different organisation with a similar name, including a
+  separately run group business that shares the name (for example a consumer-goods arm of an
+  IT services company).
 - signal: the single most important signal the article reports about this company:
   - layoffs: job cuts, retrenchment, terminations, forced exits at this company
   - salary_delay: salaries delayed or unpaid, missed payroll, unpaid dues to staff
@@ -109,10 +111,15 @@ For each article below, decide:
   - regulatory_legal: regulator notices, fines, bans, licence problems, lawsuits, government
     action against the company, or rule changes that directly hit its business
   - leadership_exit: departure of the CEO, founders or other senior leaders
-  - funding_raised: new equity or debt funding raised by this company
+  - funding_raised: new equity or debt funding raised by this company. Not an acquisition
+    the company makes, which is neutral.
   - contract_win: a major contract, order or partnership won
   - hiring_surge: a large hiring drive or plans to grow headcount
-  - neutral: anything else, or not about this company
+  - neutral: anything else, including good results, acquisitions the company makes and
+    product news, or not about this company
+  Job cuts or a deliberate reduction in staff, whatever they are called, are layoffs, not
+  restructuring. A lower headcount figure in results, which can come from people leaving,
+  is not layoffs unless the article says jobs were cut.
 - severity: 0 = no risk signal, 1 = minor, speculative or rumoured, 2 = confirmed and notable,
   3 = major, for example large-scale layoffs, a shutdown or insolvency. Use 0 for
   funding_raised, contract_win, hiring_surge and neutral.
