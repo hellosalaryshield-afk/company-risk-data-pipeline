@@ -219,3 +219,24 @@ def test_top_drivers_keeps_four_up_and_two_down():
     chosen = [d.points for d in top_drivers(items, 4, 2)]
 
     assert chosen == [9, 7, 5, 3, -6, -2]
+
+
+def test_good_news_never_shows_as_raising_risk_when_news_is_mixed():
+    events = news_score(
+        [
+            NewsEvent("bad", "regulatory_legal", TODAY - timedelta(days=5), "Licence suspended"),
+            NewsEvent("good", "hiring_surge", TODAY - timedelta(days=2), "Hiring 3,000 people"),
+        ],
+        TODAY,
+        CONFIG,
+    )[1]
+    news_value = max(sum(e.decayed_points for e in events), 0)
+    effective = {"news": 0.30, "profile": 0.06}
+
+    baseline, items = drivers([], {}, effective, (news_value, 3.5, events))
+
+    by_label = {d.label: d.points for d in items}
+    assert by_label["Licence suspended"] > 0
+    assert by_label["Hiring 3,000 people"] < 0
+    expected = (0.30 / 0.36) * news_value
+    assert baseline + sum(by_label.values()) == pytest.approx(expected, abs=0.01)

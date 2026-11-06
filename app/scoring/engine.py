@@ -198,13 +198,18 @@ def drivers(
         score, peer_avg, events = news
         omega = effective_weights["news"] / total_eff
         baseline += omega * peer_avg
-        contribution = omega * (score - peer_avg)
-        total_points = sum(item.decayed_points for item in events)
-        if events and abs(total_points) > 1e-9:
-            for item in events:
-                out.append(Driver(item.event.label, "news", contribution * item.decayed_points / total_points))
-        else:
-            out.append(Driver("No significant news in the period" if not events else "News overall", "news", contribution))
+        # Each event contributes its own weighted points, so bad news always raises the
+        # score and good news always lowers it. The spec's split "in proportion to decayed
+        # points" flips signs when good and bad news mix. What remains (the peer average,
+        # and any clamping of the news score to 0-100) is one comparison row, so the
+        # drivers still add up exactly.
+        direct = 0.0
+        for item in events:
+            out.append(Driver(item.event.label, "news", omega * item.decayed_points))
+            direct += omega * item.decayed_points
+        remainder = omega * (score - peer_avg) - direct
+        label = "No significant news in the period" if not events else "News compared with peers"
+        out.append(Driver(label, "news", remainder))
 
     return baseline, out
 
