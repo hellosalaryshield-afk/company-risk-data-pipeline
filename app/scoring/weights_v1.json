@@ -1,0 +1,57 @@
+{
+  "weights_version": "1.0",
+  "horizon": "3 to 6 months",
+  "pillar_weights": {"financial": 0.20, "sentiment": 0.30, "news": 0.30, "profile": 0.20},
+  "features": {
+    "financial_listed": [
+      {"key": "revenue_growth_yoy", "label": "Revenue growth, year on year", "direction": "safer", "weight": 0.25},
+      {"key": "operating_margin", "label": "Operating margin", "direction": "safer", "weight": 0.20},
+      {"key": "cash_runway_months", "label": "Cash runway in months", "direction": "safer", "weight": 0.25},
+      {"key": "debt_to_equity", "label": "Debt to equity", "direction": "riskier", "weight": 0.15},
+      {"key": "share_price_change_6m", "label": "Share price change, last 6 months", "direction": "safer", "weight": 0.15}
+    ],
+    "financial_unlisted": [
+      {"key": "months_since_last_funding", "label": "Months since last funding round", "direction": "riskier", "weight": 0.50},
+      {"key": "last_round_down", "label": "Last round was a down round", "direction": "riskier", "weight": 0.50, "binary": true}
+    ],
+    "sentiment": [
+      {"key": "glassdoor_rating", "label": "Glassdoor overall rating", "direction": "safer", "weight": 0.25},
+      {"key": "positive_outlook_share", "label": "Positive business outlook", "direction": "safer", "weight": 0.25},
+      {"key": "ceo_approval_share", "label": "CEO approval", "direction": "safer", "weight": 0.15},
+      {"key": "recommend_share", "label": "Recommend to a friend", "direction": "safer", "weight": 0.15},
+      {"key": "senior_management_rating", "label": "Senior management rating", "direction": "safer", "weight": 0.20}
+    ],
+    "profile": [
+      {"key": "company_age_years", "label": "Company age in years", "direction": "safer", "weight": 0.30},
+      {"key": "filings_overdue", "label": "Filings overdue", "direction": "riskier", "weight": 0.30, "binary": true},
+      {"key": "active_charges", "label": "Number of active registered charges", "direction": "riskier", "weight": 0.20},
+      {"key": "headcount_change_6m", "label": "Headcount change, last 6 months", "direction": "safer", "weight": 0.20}
+    ]
+  },
+  "news_points": {
+    "layoffs": 40,
+    "salary_delay": 50,
+    "leadership_exit": 15,
+    "hiring_freeze": 15,
+    "restructuring": 12,
+    "funding_trouble": 20,
+    "regulatory_legal": 10,
+    "funding_raised": -15,
+    "contract_win": -10,
+    "hiring_surge": -8,
+    "financial_distress": 0
+  },
+  "news_half_life_days": 45,
+  "news_duplicate_window_days": 7,
+  "news_max_events_per_type": 3,
+  "news_scan_window_days": 30,
+  "severity_multipliers": null,
+  "min_peer_group_size": 30,
+  "min_values_for_percentile": 5,
+  "stale_data_days": 90,
+  "min_coverage_to_show_score": 0.30,
+  "shrinkage": {"base": 0.5, "slope": 0.5},
+  "bands": {"low": 25, "moderate": 50, "elevated": 75},
+  "confidence": {"high": 0.80, "medium": 0.50},
+  "drivers": {"top_raising": 4, "top_lowering": 2}
+}
