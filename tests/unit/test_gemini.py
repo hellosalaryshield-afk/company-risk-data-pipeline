@@ -7,6 +7,11 @@ from app.sources import gemini
 from app.sources.gemini import GeminiClient, GeminiError, GeminiRateLimitError
 
 
+@pytest.fixture(autouse=True)
+def no_waiting(monkeypatch):
+    monkeypatch.setattr(gemini.time, "sleep", lambda seconds: None)
+
+
 def fake_post(status_code=200, payload=None, calls=None):
     def post(url, json=None, headers=None, timeout=None):
         if calls is not None:
@@ -93,3 +98,48 @@ def test_timeouts_become_gemini_errors(monkeypatch):
 
     with pytest.raises(GeminiError, match="timed out"):
         GeminiClient("k", "m").generate_json("p", {})
+
+
+def test_a_temporary_503_is_retried(monkeypatch):
+    responses = [
+        httpx.Response(503, json={"error": {"message": "high demand"}}, request=httpx.Request("POST", "u")),
+        httpx.Response(200, json=ok_payload({"ok": True}), request=httpx.Request("POST", "u")),
+    ]
+    calls = []
+
+    def post(url, json=None, headers=None, timeout=None):
+        calls.append(url)
+        return responses.pop(0)
+
+    monkeypatch.setattr(gemini.httpx, "post", post)
+
+    assert GeminiClient("k", "m").generate_json("p", {}).data == {"ok": True}
+    assert len(calls) == 2
+
+
+def test_a_persistent_503_gives_up_after_the_retries(monkeypatch):
+    calls = []
+
+    def post(url, json=None, headers=None, timeout=None):
+        calls.append(url)
+        return httpx.Response(503, json={"error": {"message": "high demand"}}, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(gemini.httpx, "post", post)
+
+    with pytest.raises(GeminiError, match="HTTP 503"):
+        GeminiClient("k", "m", retry_waits=(1.0, 1.0)).generate_json("p", {})
+    assert len(calls) == 3
+
+
+def test_a_quota_429_is_not_retried(monkeypatch):
+    calls = []
+
+    def post(url, json=None, headers=None, timeout=None):
+        calls.append(url)
+        return httpx.Response(429, json={"error": {"message": "Quota"}}, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(gemini.httpx, "post", post)
+
+    with pytest.raises(GeminiRateLimitError):
+        GeminiClient("k", "m").generate_json("p", {})
+    assert len(calls) == 1

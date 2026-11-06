@@ -163,6 +163,7 @@ def test_news_score_is_clamped_and_positive_news_cannot_go_below_zero():
 
 
 def test_unscored_types_are_ignored():
+    # "growth" is a retired category that older stored records may still carry.
     score, kept = news_score([NewsEvent("n", "neutral", TODAY, "x"), NewsEvent("g", "growth", TODAY, "x")], TODAY, CONFIG)
 
     assert score == 0.0 and kept == []

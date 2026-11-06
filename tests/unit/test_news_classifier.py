@@ -121,7 +121,7 @@ def test_parse_drops_malformed_unexpected_and_duplicate_items():
     data = {
         "articles": [
             item(index=0),
-            item(index=0, signal="growth"),  # duplicate index, first one wins
+            item(index=0, signal="funding_raised"),  # duplicate index, first one wins
             item(index=7),  # never sent
             item(index=1, signal="bankruptcy"),  # not an allowed signal
             item(index=2, confidence="certain"),
@@ -137,7 +137,7 @@ def test_parse_drops_malformed_unexpected_and_duplicate_items():
 
 
 def test_parse_clamps_severity_and_zeroes_it_for_non_risk_signals():
-    data = {"articles": [item(index=0, severity=9), item(index=1, signal="growth", severity=3)]}
+    data = {"articles": [item(index=0, severity=9), item(index=1, signal="funding_raised", severity=3)]}
 
     results = parse_classifications(data, {0, 1})
 
@@ -184,3 +184,29 @@ def test_classifier_sends_one_request_per_batch():
     assert len(client.prompts) == 1
     assert results[0].is_risk and not results[1].is_risk
     assert NewsSignalClassifier(client).classify("Zepto", []) == {}
+
+
+def test_categories_match_the_risk_score_event_table():
+    data = {
+        "articles": [
+            item(index=0, signal="salary_delay", severity=2),
+            item(index=1, signal="funding_trouble", severity=2),
+            item(index=2, signal="contract_win", severity=2),
+            item(index=3, signal="growth", severity=0),  # retired category
+        ]
+    }
+
+    results = parse_classifications(data, {0, 1, 2, 3})
+
+    assert results[0].is_risk and results[1].is_risk
+    assert results[2].is_risk is False and results[2].severity == 0
+    assert 3 not in results
+
+
+def test_prompt_defines_every_category():
+    from app.sources.news_classifier import SIGNALS
+
+    prompt = build_prompt("Zepto", [ArticleForClassification(index=0, title="t", published=None, text="x")])
+
+    for signal in SIGNALS:
+        assert f"  - {signal}:" in prompt

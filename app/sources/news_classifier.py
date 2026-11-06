@@ -3,21 +3,36 @@ from typing import Any
 
 from app.sources.gemini import GeminiClient
 
-# What an article can say about a company. Everything except growth and neutral is a
-# layoff-risk signal.
+# What an article can say about a company. The types match the event table of the risk
+# score ("Layoff Risk Score: Developer Instructions (Version 1)", step 3), plus
+# financial_distress, which that table does not price yet.
 SIGNALS = (
     "layoffs",
+    "salary_delay",
     "hiring_freeze",
     "restructuring",
+    "funding_trouble",
     "financial_distress",
     "regulatory_legal",
     "leadership_exit",
-    "growth",
+    "funding_raised",
+    "contract_win",
+    "hiring_surge",
     "neutral",
 )
 RISK_SIGNALS = frozenset(
-    {"layoffs", "hiring_freeze", "restructuring", "financial_distress", "regulatory_legal", "leadership_exit"}
+    {
+        "layoffs",
+        "salary_delay",
+        "hiring_freeze",
+        "restructuring",
+        "funding_trouble",
+        "financial_distress",
+        "regulatory_legal",
+        "leadership_exit",
+    }
 )
+POSITIVE_SIGNALS = frozenset({"funding_raised", "contract_win", "hiring_surge"})
 CONFIDENCE_LEVELS = ("low", "medium", "high")
 MAX_SEVERITY = 3
 NEW_EVENT = "new"
@@ -82,18 +97,25 @@ For each article below, decide:
   comparison, and articles about a different organisation with a similar name.
 - signal: the single most important signal the article reports about this company:
   - layoffs: job cuts, retrenchment, terminations, forced exits at this company
-  - hiring_freeze: hiring paused, offers revoked or deferred, onboarding delayed
-  - restructuring: reorganisation, cost cutting, office or unit closures, business exits
-  - financial_distress: losses, revenue decline, cash or funding trouble, debt problems,
-    lowered guidance, insolvency
+  - salary_delay: salaries delayed or unpaid, missed payroll, unpaid dues to staff
+  - hiring_freeze: hiring paused, offers revoked or deferred, onboarding delayed, open roles
+    cut sharply
+  - restructuring: reorganisation, merger of business units, cost cutting, office or unit
+    closures, business exits
+  - funding_trouble: a failed, cancelled or stalled fundraise, a down round (raising at a
+    lower valuation), or investors pulling out
+  - financial_distress: losses, revenue decline, cash crunch, debt problems, lowered
+    guidance, insolvency, when not about a funding round
   - regulatory_legal: regulator notices, fines, bans, licence problems, lawsuits, government
     action against the company, or rule changes that directly hit its business
   - leadership_exit: departure of the CEO, founders or other senior leaders
-  - growth: hiring, expansion, new funding, strong results
+  - funding_raised: new equity or debt funding raised by this company
+  - contract_win: a major contract, order or partnership won
+  - hiring_surge: a large hiring drive or plans to grow headcount
   - neutral: anything else, or not about this company
 - severity: 0 = no risk signal, 1 = minor, speculative or rumoured, 2 = confirmed and notable,
-  3 = major, for example large-scale layoffs, a shutdown or insolvency. Use 0 for growth
-  and neutral.
+  3 = major, for example large-scale layoffs, a shutdown or insolvency. Use 0 for
+  funding_raised, contract_win, hiring_surge and neutral.
 - confidence: how sure you are, from the article text alone.
 - reason: one short sentence, at most 25 words, citing what the article says.
 - event: the one specific real-world event the article reports, in at most 15 words, for example

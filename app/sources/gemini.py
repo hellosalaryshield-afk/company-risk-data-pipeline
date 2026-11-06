@@ -1,10 +1,12 @@
 import json
+import time
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
+RETRYABLE_STATUSES = {500, 502, 503, 504}
 
 
 class GeminiError(RuntimeError):
@@ -30,10 +32,17 @@ class GeminiClient:
     send personal data (offer letters, CVs) through this client on a free key.
     """
 
-    def __init__(self, api_key: str, model: str, timeout_seconds: float = 60.0):
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        timeout_seconds: float = 60.0,
+        retry_waits: tuple[float, ...] = (5.0, 20.0),
+    ):
         self.api_key = api_key
         self.model = model
         self.timeout_seconds = timeout_seconds
+        self.retry_waits = retry_waits
 
     def generate_json(self, prompt: str, response_schema: dict[str, Any]) -> GeminiResult:
         body = {
@@ -45,17 +54,27 @@ class GeminiClient:
             },
         }
 
-        try:
-            response = httpx.post(
-                f"{GEMINI_API_BASE}/models/{self.model}:generateContent",
-                json=body,
-                headers={"x-goog-api-key": self.api_key},
-                timeout=self.timeout_seconds,
-            )
-        except httpx.TimeoutException as exc:
-            raise GeminiError("Gemini request timed out.") from exc
-        except httpx.HTTPError as exc:
-            raise GeminiError(f"Gemini request failed: {exc.__class__.__name__}.") from exc
+        # Google answers 500/503 ("high demand") during load spikes that pass within seconds,
+        # so those are retried. A 429 is a quota limit and is not.
+        for wait in (*self.retry_waits, None):
+            try:
+                response = httpx.post(
+                    f"{GEMINI_API_BASE}/models/{self.model}:generateContent",
+                    json=body,
+                    headers={"x-goog-api-key": self.api_key},
+                    timeout=self.timeout_seconds,
+                )
+            except httpx.TimeoutException as exc:
+                if wait is None:
+                    raise GeminiError("Gemini request timed out.") from exc
+                time.sleep(wait)
+                continue
+            except httpx.HTTPError as exc:
+                raise GeminiError(f"Gemini request failed: {exc.__class__.__name__}.") from exc
+            if response.status_code in RETRYABLE_STATUSES and wait is not None:
+                time.sleep(wait)
+                continue
+            break
 
         if response.status_code == 429:
             raise GeminiRateLimitError(f"Gemini quota or rate limit reached: {error_message(response)}")

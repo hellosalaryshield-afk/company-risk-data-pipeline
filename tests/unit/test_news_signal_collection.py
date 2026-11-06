@@ -106,7 +106,7 @@ def run(db_session, articles, classifier, fetcher=None, **kwargs):
 
 def test_classifies_articles_and_stores_kpis(db_session, zepto):
     classifier = FakeClassifier(
-        {1: ("layoffs", True, 3), 2: ("growth", True, 0), 3: ("restructuring", True, 2), 4: ("layoffs", False, 3)}
+        {1: ("layoffs", True, 3), 2: ("funding_raised", True, 0), 3: ("restructuring", True, 2), 4: ("layoffs", False, 3)}
     )
     articles = [article(1, 10), article(2, 12), article(3, 14), article(4, 15)]
 
