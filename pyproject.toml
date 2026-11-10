@@ -25,6 +25,9 @@ dev = [
 observability = [
     "logfire[fastapi,httpx,sqlalchemy]>=5.4.0",
 ]
+scorecard = [
+    "playwright>=1.65.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
@@ -48,6 +48,8 @@ from app.pipeline.news_signal_collection import NewsSignalCollectionError, colle
 from app.pipeline.workplace_collection import WorkplaceCollectionError, collect_workplace_for_company
 from app.reports.company_report import build_company_report
 from app.reports.renderer import render_company_report_html, render_company_report_pdf
+from app.reports.scorecard import build_scorecard
+from app.reports.scorecard_render import ScorecardRenderError, render_scorecard_html, render_scorecard_pdf
 
 router = APIRouter()
 
@@ -251,6 +253,34 @@ def company_report_pdf(company_id: int, db: Session = Depends(get_db_session)) -
         content=pdf,
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="{filename}_signal_report.pdf"'},
+    )
+
+
+@router.get("/companies/{company_id}/scorecard", response_class=HTMLResponse)
+def company_scorecard(
+    company_id: int, theme: str = Query("paper", pattern="^(paper|night)$"), db: Session = Depends(get_db_session)
+) -> HTMLResponse:
+    """The Company Scorecard as a web page: the indicative score and its evidence."""
+    company = load_company_or_404(company_id, db)
+    return HTMLResponse(render_scorecard_html(build_scorecard(db, company), theme))
+
+
+@router.get("/companies/{company_id}/scorecard.pdf")
+def company_scorecard_pdf(
+    company_id: int, theme: str = Query("paper", pattern="^(paper|night)$"), db: Session = Depends(get_db_session)
+) -> Response:
+    """The Company Scorecard as a two-page A4 PDF."""
+    company = load_company_or_404(company_id, db)
+    html = render_scorecard_html(build_scorecard(db, company), theme)
+    try:
+        pdf = render_scorecard_pdf(html)
+    except ScorecardRenderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    filename = company.canonical_name.replace(" ", "_").lower()
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}_scorecard.pdf"'},
     )
 
 
