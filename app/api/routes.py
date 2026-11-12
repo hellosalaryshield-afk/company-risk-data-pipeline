@@ -13,6 +13,7 @@ from app.database.session import get_db_session
 from app.models.collection import CollectionRun
 from app.models.source import DataSource
 from app.pipeline.company_collection import collect_company_data
+from app.pipeline.freshness import refresh_company
 from app.features.point_in_time import feature_vector_as_of, leakage_scan
 from app.pipeline.gdelt_collection import collect_gdelt_for_company
 from app.pipeline.macro_collection import collect_macro_indicators
@@ -256,22 +257,34 @@ def company_report_pdf(company_id: int, db: Session = Depends(get_db_session)) -
     )
 
 
+def scorecard_html(company_id: int, theme: str, refresh: bool, db: Session):
+    company = load_company_or_404(company_id, db)
+    if refresh:
+        refresh_company(db, company, get_settings())
+    return company, render_scorecard_html(build_scorecard(db, company), theme)
+
+
 @router.get("/companies/{company_id}/scorecard", response_class=HTMLResponse)
 def company_scorecard(
-    company_id: int, theme: str = Query("paper", pattern="^(paper|night)$"), db: Session = Depends(get_db_session)
+    company_id: int,
+    theme: str = Query("paper", pattern="^(paper|night)$"),
+    refresh: bool = Query(True, description="Fetch sources whose stored data is stale or missing first"),
+    db: Session = Depends(get_db_session),
 ) -> HTMLResponse:
     """The Company Scorecard as a web page: the indicative score and its evidence."""
-    company = load_company_or_404(company_id, db)
-    return HTMLResponse(render_scorecard_html(build_scorecard(db, company), theme))
+    _, html = scorecard_html(company_id, theme, refresh, db)
+    return HTMLResponse(html)
 
 
 @router.get("/companies/{company_id}/scorecard.pdf")
 def company_scorecard_pdf(
-    company_id: int, theme: str = Query("paper", pattern="^(paper|night)$"), db: Session = Depends(get_db_session)
+    company_id: int,
+    theme: str = Query("paper", pattern="^(paper|night)$"),
+    refresh: bool = Query(True, description="Fetch sources whose stored data is stale or missing first"),
+    db: Session = Depends(get_db_session),
 ) -> Response:
     """The Company Scorecard as a two-page A4 PDF."""
-    company = load_company_or_404(company_id, db)
-    html = render_scorecard_html(build_scorecard(db, company), theme)
+    company, html = scorecard_html(company_id, theme, refresh, db)
     try:
         pdf = render_scorecard_pdf(html)
     except ScorecardRenderError as exc:

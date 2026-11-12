@@ -181,8 +181,14 @@ def client(db_session):
 
 
 def test_scorecard_endpoints(client, swiggy, monkeypatch):
+    refreshed = []
+    monkeypatch.setattr("app.api.routes.refresh_company", lambda db, company, settings: refreshed.append(company.id))
+
     page = client.get(f"/companies/{swiggy.id}/scorecard?theme=night")
     assert page.status_code == 200 and "Swiggy" in page.text and "--page: #0D0D0F" in page.text
+    assert refreshed == [swiggy.id]  # stale data is checked before the report by default
+    assert client.get(f"/companies/{swiggy.id}/scorecard?refresh=false").status_code == 200
+    assert refreshed == [swiggy.id]
     assert client.get(f"/companies/{swiggy.id}/scorecard?theme=neon").status_code == 422
     assert client.get("/companies/999/scorecard").status_code == 404
 
