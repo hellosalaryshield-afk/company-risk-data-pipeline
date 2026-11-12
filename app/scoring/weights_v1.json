@@ -39,8 +39,9 @@
     "funding_raised": -15,
     "contract_win": -10,
     "hiring_surge": -8,
-    "financial_distress": 0
+    "financial_distress": 15
   },
+  "bad_news_weight": 1.2,
   "news_half_life_days": 45,
   "news_duplicate_window_days": 7,
   "news_max_events_per_type": 3,

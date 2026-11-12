@@ -5,7 +5,7 @@ from app.sources.gemini import GeminiClient
 
 # What an article can say about a company. The types match the event table of the risk
 # score ("Layoff Risk Score: Developer Instructions (Version 1)", step 3), plus
-# financial_distress, which that table does not price yet.
+# financial_distress (losses, guidance cuts), which we price ourselves in weights_v1.json.
 SIGNALS = (
     "layoffs",
     "salary_delay",

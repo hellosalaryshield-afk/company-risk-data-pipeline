@@ -21,6 +21,8 @@ from app.scoring.engine import (
 )
 
 CONFIG = load_config()
+# The spec's news arithmetic, without our extra weight on bad news.
+SPEC = {**CONFIG, "bad_news_weight": 1.0}
 WEIGHTS = CONFIG["pillar_weights"]
 TODAY = datetime(2026, 11, 6, tzinfo=UTC)
 
@@ -122,8 +124,8 @@ def test_almost_no_data_returns_not_enough_data():
 
 # Section 9, test 7
 def test_news_decay_halves_an_event_after_45_days():
-    today_score, _ = news_score([NewsEvent("x", "layoffs", TODAY, "Layoffs")], TODAY, CONFIG)
-    old_score, _ = news_score([NewsEvent("x", "layoffs", TODAY - timedelta(days=45), "Layoffs")], TODAY, CONFIG)
+    today_score, _ = news_score([NewsEvent("x", "layoffs", TODAY, "Layoffs")], TODAY, SPEC)
+    old_score, _ = news_score([NewsEvent("x", "layoffs", TODAY - timedelta(days=45), "Layoffs")], TODAY, SPEC)
 
     assert today_score == pytest.approx(40.0)
     assert old_score == pytest.approx(20.0)
@@ -133,7 +135,7 @@ def test_news_decay_halves_an_event_after_45_days():
 def test_the_same_type_within_7_days_counts_once():
     events = [NewsEvent(str(i), "layoffs", TODAY - timedelta(days=i), "Layoffs") for i in (0, 2, 5)]
 
-    score, kept = news_score(events, TODAY, CONFIG)
+    score, kept = news_score(events, TODAY, SPEC)
 
     assert len(kept) == 1
     assert score == pytest.approx(40.0)
@@ -171,10 +173,24 @@ def test_unscored_types_are_ignored():
 
 def test_severity_scaling_is_off_by_default_and_applies_when_configured():
     event = [NewsEvent("x", "layoffs", TODAY, "Layoffs", severity=3)]
-    scaled = {**CONFIG, "severity_multipliers": {"1": 0.5, "2": 1.0, "3": 1.5}}
+    scaled = {**SPEC, "severity_multipliers": {"1": 0.5, "2": 1.0, "3": 1.5}}
 
-    assert news_score(event, TODAY, CONFIG)[0] == pytest.approx(40.0)
+    assert news_score(event, TODAY, SPEC)[0] == pytest.approx(40.0)
     assert news_score(event, TODAY, scaled)[0] == pytest.approx(60.0)
+
+
+def test_bad_news_counts_a_little_more_than_good_news():
+    layoff = [NewsEvent("x", "layoffs", TODAY, "Layoffs")]
+    mixed = layoff + [NewsEvent("g", "funding_raised", TODAY, "Raised")]
+
+    assert news_score(layoff, TODAY, CONFIG)[0] == pytest.approx(40 * 1.2)
+    assert news_score(mixed, TODAY, CONFIG)[0] == pytest.approx(40 * 1.2 - 15)  # good news is not scaled
+
+
+def test_losses_and_guidance_cuts_raise_the_news_score():
+    loss = [NewsEvent("x", "financial_distress", TODAY, "Quarterly loss widens")]
+
+    assert news_score(loss, TODAY, SPEC)[0] == pytest.approx(15.0)
 
 
 def test_pillar_coverage_example_from_the_spec():

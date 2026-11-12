@@ -68,12 +68,16 @@ def news_score(events: list[NewsEvent], as_of: datetime, config: dict[str, Any])
     One story is counted once: events arrive already grouped by story, and the spec's
     rule is applied on top: the same type within `news_duplicate_window_days` counts once,
     and at most `news_max_events_per_type` events of a type count.
+
+    Risk-raising events are scaled by `bad_news_weight` (not in the spec): companies push
+    their good news, so bad news should count a little more.
     """
     points_table = config["news_points"]
     half_life = config["news_half_life_days"]
     window = config["news_duplicate_window_days"]
     per_type = config["news_max_events_per_type"]
     multipliers = config.get("severity_multipliers")
+    bad_news_weight = config.get("bad_news_weight", 1.0)
 
     kept: list[ScoredEvent] = []
     kept_dates: dict[str, list[datetime]] = {}
@@ -88,6 +92,8 @@ def news_score(events: list[NewsEvent], as_of: datetime, config: dict[str, Any])
             continue
         if multipliers:
             points *= multipliers.get(str(event.severity), 1.0)
+        if points > 0:
+            points *= bad_news_weight
         days_old = max((as_of - event.published_at).total_seconds() / 86400, 0)
         kept.append(ScoredEvent(event, float(points), 0.5 ** (days_old / half_life)))
         dates.append(event.published_at)
