@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=cd2f4bce-ed50-4cba-9768-9b7b791681bd
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Salary Shield — Insure Your Salary</title>
+  <meta name="description" content="Help us build India's first salary insurance product. Tell us about yourself — we're researching demand before we build." />
+
+  <meta property="og:title"       content="Salary Shield — Insure Your Salary" />
+  <meta property="og:description" content="India's first salary insurance is being built. If you lose your job, your income shouldn't stop. Shape this product with a 3-min survey." />
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://salaryshield.in" />
+  <meta property="og:image"       content="https://salaryshield.in/og-image.jpg" />
+  <meta name="twitter:card"       content="summary_large_image" />
+  <meta name="twitter:title"      content="Salary Shield — Insure Your Salary" />
+  <meta name="twitter:description" content="Shape India's first salary insurance product. Takes 3 minutes." />
+
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'><path d='M14 2L4 6.5V14C4 19.5 8.5 24.5 14 26C19.5 24.5 24 19.5 24 14V6.5L14 2Z' fill='%23C9A84C'/><text x='9.5' y='18.5' font-family='serif' font-size='12' font-weight='700' fill='%230D0D0F'>S</text></svg>" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Playfair Display"','Georgia','serif'],
+            body:    ['"DM Sans"','sans-serif'],
+          },
+          colors: {
+            gold:  { DEFAULT:'#C9A84C', light:'#E8C76A', dark:'#9A7A30' },
+            ember: { DEFAULT:'#E05533', light:'#F07050', dark:'#B03A20' },
+            ink:   { 950:'#080809', 900:'#0D0D0F', 800:'#14141A', 700:'#1C1C24', 600:'#24242E', 500:'#32323E' },
+            sage:  { DEFAULT:'#4A9B7F', light:'#6BB89A' },
+            cream: '#F2EDE4',
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css" />
+  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { font-family: 'DM Sans', sans-serif; scroll-padding-top: 140px; scroll-behavior: smooth; }
+
+    body::before {
+      content:''; position:fixed; inset:0; pointer-events:none; z-index:9999;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      opacity:0.028;
+    }
+
+    .orb { position:absolute; border-radius:50%; filter:blur(110px); pointer-events:none; }
+    .text-gold-grad  { background:linear-gradient(130deg,#E8C76A 0%,#C9A84C 55%,#9A7A30 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .text-ember-grad { background:linear-gradient(130deg,#F07050 0%,#E05533 60%,#B03A20 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .rule-gold  { height:1px; background:linear-gradient(90deg,transparent,rgba(201,168,76,0.35),transparent); }
+    .rule-ember { height:1px; background:linear-gradient(90deg,transparent,rgba(224,85,51,0.4),transparent); }
+
+    .btn-gold { cursor:pointer; background:linear-gradient(135deg,#E8C76A,#C9A84C); transition:transform 0.2s,box-shadow 0.25s; }
+    .btn-gold:hover { transform:translateY(-2px); box-shadow:0 14px 44px rgba(201,168,76,0.4); }
+    .btn-gold:active { transform:translateY(0); }
+
+    .ticker-track { display:flex; width:max-content; animation:ticker 42s linear infinite; }
+    .ticker-track:hover { animation-play-state:paused; }
+    @keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+    .stat-card { border:1px solid rgba(224,85,51,0.15); background:linear-gradient(135deg,rgba(224,85,51,0.06),rgba(224,85,51,0.02)); transition:border-color 0.3s,transform 0.3s; }
+    .stat-card:hover { border-color:rgba(224,85,51,0.35); transform:translateY(-3px); }
+
+    .step-line { flex:1; height:1px; background:linear-gradient(90deg,rgba(201,168,76,0.3),transparent); }
+
+    .form-step { display:none; animation:stepIn 0.45s cubic-bezier(0.22,1,0.36,1) forwards; }
+    .form-step.active { display:block; }
+    @keyframes stepIn { from{opacity:0;transform:translateX(28px)} to{opacity:1;transform:translateX(0)} }
+
+    .field-group { position:relative; }
+    .field-label { display:block; font-family:'DM Sans',sans-serif; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.08em; color:rgba(242,237,228,0.45); margin-bottom:0.5rem; }
+
+    .field-input {
+      width:100%; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+      border-radius:0.75rem; padding:0.85rem 1rem; font-family:'DM Sans',sans-serif;
+      font-size:0.9rem; color:#F2EDE4; outline:none;
+      transition:border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      -webkit-appearance:none; appearance:none;
+    }
+    .field-input::placeholder { color:rgba(242,237,228,0.22); }
+    .field-input:focus { border-color:rgba(201,168,76,0.55); background:rgba(201,168,76,0.05); box-shadow:0 0 0 3px rgba(201,168,76,0.1); }
+    .field-input option { background:#1C1C24; color:#F2EDE4; }
+
+    .field-input.field-error { border-color:rgba(224,85,51,0.65) !important; background:rgba(224,85,51,0.05) !important; }
+    .error-msg { display:none; font-family:'DM Sans',sans-serif; font-size:0.72rem; color:#F07050; margin-top:0.35rem; padding-left:0.2rem; }
+    .error-msg.visible { display:block; }
+    .pill-grid.group-error .pill-label { border-color:rgba(224,85,51,0.35); }
+
+    .pill-grid { display:flex; flex-wrap:wrap; gap:0.5rem; }
+    .pill-option { display:none; }
+    .pill-label {
+      display:inline-flex; align-items:center; gap:0.4rem;
+      padding:0.5rem 0.9rem; border-radius:2rem; cursor:pointer;
+      border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.03);
+      font-family:'DM Sans',sans-serif; font-size:0.8rem; color:rgba(242,237,228,0.55);
+      transition:border-color 0.2s,background 0.2s,color 0.2s;
+      user-select:none;
+    }
+    .pill-option:checked + .pill-label { border-color:rgba(201,168,76,0.7); background:rgba(201,168,76,0.12); color:#E8C76A; }
+    .pill-label:hover { border-color:rgba(201,168,76,0.4); color:rgba(242,237,228,0.8); }
+
+    .range-input { -webkit-appearance:none; width:100%; height:4px; background:rgba(201,168,76,0.2); border-radius:2px; outline:none; transition:background 0.2s; }
+    .range-input::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:linear-gradient(135deg,#E8C76A,#C9A84C); cursor:pointer; box-shadow:0 0 0 3px rgba(201,168,76,0.2); }
+    .range-input:hover { background:rgba(201,168,76,0.35); }
+
+    #form-progress-bar { transition:width 0.5s cubic-bezier(0.22,1,0.36,1); }
+
+    ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:#0D0D0F} ::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.3);border-radius:3px}
+    :focus-visible{outline:2px solid #C9A84C;outline-offset:3px}
+
+    @keyframes fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+    .anim-0{animation:fadeUp 0.85s ease forwards;animation-delay:0.1s;opacity:0}
+    .anim-1{animation:fadeUp 0.85s ease forwards;animation-delay:0.28s;opacity:0}
+    .anim-2{animation:fadeUp 0.85s ease forwards;animation-delay:0.46s;opacity:0}
+    .anim-3{animation:fadeUp 0.85s ease forwards;animation-delay:0.64s;opacity:0}
+
+    /* Company risk check */
+    .btn-ember { cursor:pointer; background:linear-gradient(135deg,#F07050,#E05533); color:#FFF6F0; transition:transform 0.2s,box-shadow 0.25s; }
+    .btn-ember:hover { transform:translateY(-2px); box-shadow:0 14px 44px rgba(224,85,51,0.4); }
+    .btn-ember:active { transform:translateY(0); }
+    .btn-ember-outline { cursor:pointer; color:#F07050; border:1px solid rgba(224,85,51,0.45); background:rgba(224,85,51,0.06); transition:border-color 0.2s,background 0.2s,transform 0.2s; }
+    .btn-ember-outline:hover { border-color:rgba(224,85,51,0.8); background:rgba(224,85,51,0.12); transform:translateY(-2px); }
+
+    .rc-search { display:flex; align-items:center; gap:8px; padding:6px 6px 6px 22px; border-radius:999px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.04); transition:border-color 0.2s, box-shadow 0.2s; }
+    .rc-search:focus-within { border-color:rgba(201,168,76,0.55); box-shadow:0 0 0 3px rgba(201,168,76,0.1); }
+    .rc-search input { flex:1; min-width:0; background:transparent; border:none; outline:none; color:#F2EDE4; font-family:'DM Sans',sans-serif; font-size:15px; padding:10px 0; }
+    .rc-search input::placeholder { color:rgba(242,237,228,0.3); }
+    .rc-weight { display:flex; justify-content:space-between; gap:12px; padding:12px 0; border-top:1px solid rgba(201,168,76,0.16); }
+    .rc-weight span:first-child { color:rgba(242,237,228,0.75); } .rc-weight span:last-child { color:rgba(242,237,228,0.45); }
+    .rc-weight-last { border-bottom:1px solid rgba(201,168,76,0.16); }
+
+    .rc-panel { border-radius:24px; border:1px solid rgba(201,168,76,0.2); background:rgba(13,13,15,0.85); padding:28px 24px; min-height:420px; scroll-margin-top:110px; }
+    @media (min-width:768px) { .rc-panel { padding:32px 34px; } }
+    .rc-kicker { font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:rgba(242,237,228,0.5); }
+    .rc-rule { border-top:1px solid rgba(201,168,76,0.16); }
+    .rc-chip { display:inline-flex; align-items:center; gap:6px; height:24px; padding:0 10px 0 8px; border-radius:12px; border:1px solid; font-size:11.5px; font-weight:600; white-space:nowrap; }
+    .rc-steps { display:flex; align-items:flex-end; gap:1.5px; height:10px; } .rc-steps span { width:3px; }
+    .rc-conf { display:inline-flex; align-items:center; gap:7px; height:26px; padding:0 10px; border-radius:4px; border:1px dashed #C9A84C; font-size:12px; font-weight:600; white-space:nowrap; }
+    .rc-conf i { display:block; width:5px; height:10px; border:1px solid #C9A84C; }
+    .rc-conf i.on { background:#C9A84C; }
+    .rc-link { font-size:13.5px; font-weight:600; color:#E8C76A; cursor:pointer; background:none; border:none; padding:0; font-family:'DM Sans',sans-serif; }
+    .rc-link:hover { text-decoration:underline; text-underline-offset:3px; }
+
+    .rc-row { display:grid; grid-template-columns:minmax(0,1fr) 44px auto; column-gap:14px; align-items:center; padding:16px 8px; border-bottom:1px solid rgba(201,168,76,0.16); width:100%; text-align:left; background:none; cursor:pointer; transition:background 0.2s; color:inherit; font:inherit; }
+    .rc-row:hover, .rc-row.active { background:rgba(201,168,76,0.05); }
+    .rc-row .rc-bar, .rc-row .rc-row-conf, .rc-row .rc-row-go { display:none; }
+    @media (min-width:900px) {
+      .rc-row { grid-template-columns:minmax(0,1.3fr) 56px minmax(0,1.4fr) 110px 140px 130px; column-gap:20px; }
+      .rc-row .rc-bar, .rc-row .rc-row-conf, .rc-row .rc-row-go { display:block; }
+    }
+    .rc-bar { position:relative; height:6px; background:#24242E; }
+    .rc-bar b { position:absolute; left:0; top:0; bottom:0; }
+    .rc-bar i { position:absolute; top:0; bottom:0; width:2px; background:#14141A; }
+
+    .rc-loading-step { display:flex; gap:12px; align-items:flex-start; padding:12px 0; border-top:1px solid rgba(201,168,76,0.12); }
+    .rc-dot { flex:none; width:20px; height:20px; border-radius:50%; border:1px solid rgba(242,237,228,0.25); display:flex; align-items:center; justify-content:center; font-size:11px; }
+    .rc-dot.done { background:#4A9B7F; border-color:#4A9B7F; color:#0D0D0F; }
+    .rc-dot.now { border-color:#C9A84C; border-top-color:transparent; animation:rcspin 0.9s linear infinite; }
+    @keyframes rcspin { to { transform:rotate(360deg); } }
+    .rc-fade { animation:fadeUp 0.45s ease both; }
+    .rc-check { display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.5; color:rgba(242,237,228,0.6); cursor:pointer; }
+    .rc-check input { margin-top:3px; accent-color:#C9A84C; }
+    .rc-hp { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+  </style>
+</head>
+<body class="bg-ink-900 text-cream overflow-x-hidden">
+
+<!-- NAV -->
+<nav id="nav" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+     style="background:rgba(13,13,15,0.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,0.04)">
+  <div class="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
+    <a href="#" class="flex items-center gap-2.5">
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
+        <path d="M14 2L4 6.5V14C4 19.5 8.5 24.5 14 26C19.5 24.5 24 19.5 24 14V6.5L14 2Z" fill="url(#sg1)"/>
+        <text x="9.5" y="18.5" font-family="Playfair Display,serif" font-size="12" font-weight="700" fill="#0D0D0F">S</text>
+        <defs><linearGradient id="sg1" x1="4" y1="2" x2="24" y2="26" gradientUnits="userSpaceOnUse"><stop stop-color="#E8C76A"/><stop offset="1" stop-color="#9A7A30"/></linearGradient></defs>
+      </svg>
+      <span class="font-body font-semibold text-cream/90 tracking-wide text-sm whitespace-nowrap">Salary Shield</span>
+    </a>
+    <div class="flex items-center gap-2 sm:gap-3">
+      <a href="#company-check" class="btn-ember px-4 sm:px-5 py-2.5 rounded-full text-xs font-body font-semibold tracking-wide whitespace-nowrap">
+        Is my job safe?
+      </a>
+      <a href="#survey" class="btn-gold px-4 sm:px-5 py-2.5 rounded-full text-xs font-body font-semibold text-ink-900 tracking-wide whitespace-nowrap">
+        <span class="sm:hidden">Survey →</span><span class="hidden sm:inline">Take the Survey →</span>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- TICKER -->
+<div class="fixed top-16 left-0 right-0 z-40 overflow-hidden border-b"
+     style="background:rgba(224,85,51,0.08);border-color:rgba(224,85,51,0.2)">
+  <div class="flex items-center">
+    <div class="flex-shrink-0 px-4 py-1.5 border-r flex items-center gap-2"
+         style="background:rgba(224,85,51,0.2);border-color:rgba(224,85,51,0.3)">
+      <span class="w-1.5 h-1.5 rounded-full bg-ember animate-pulse"></span>
+      <span class="font-body text-xs font-semibold text-ember tracking-widest uppercase">Live</span>
+    </div>
+    <div class="flex-1 overflow-hidden py-1.5">
+      <div class="ticker-track font-body text-xs text-cream/50">
+        <span class="px-8">Infosys, Wipro, TCS collectively cut 60,000+ jobs in FY25&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">Byju's collapses — 25,000 employees left without salaries for months&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">Paytm lays off 3,500 employees amid restructuring pressure&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">India's IT sector faces largest downsizing in a decade — NASSCOM&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">Average job search in India now takes 4–6 months: LinkedIn data&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">Ola, Swiggy, Meesho shed 40%+ of workforce since 2023&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">PhonePe, CRED, Zomato all announced layoffs in the same quarter&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">71% of Indian employees have less than 3 months of emergency savings&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">Infosys, Wipro, TCS collectively cut 60,000+ jobs in FY25&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">Byju's collapses — 25,000 employees left without salaries for months&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">Paytm lays off 3,500 employees amid restructuring pressure&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">India's IT sector faces largest downsizing in a decade — NASSCOM&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">Average job search in India now takes 4–6 months: LinkedIn data&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">Ola, Swiggy, Meesho shed 40%+ of workforce since 2023&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">PhonePe, CRED, Zomato all announced layoffs in the same quarter&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+        <span class="px-8">71% of Indian employees have less than 3 months of emergency savings&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<section class="relative pt-36 pb-24 px-6 overflow-hidden flex flex-col items-center text-center">
+  <div class="orb w-[520px] h-[520px]" style="background:rgba(201,168,76,0.09);top:-8rem;right:-10rem"></div>
+  <div class="orb w-96 h-96" style="background:rgba(224,85,51,0.07);bottom:0;left:-6rem"></div>
+
+  <div class="anim-0">
+    <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-xs font-body font-medium tracking-widest uppercase mb-10"
+          style="border-color:rgba(224,85,51,0.35);color:#F07050;background:rgba(224,85,51,0.07)">
+      <span class="w-1.5 h-1.5 rounded-full bg-ember animate-pulse"></span>
+      Demand Research — We're Building This For You
+    </span>
+  </div>
+
+  <h1 class="anim-1 font-display text-5xl sm:text-6xl md:text-7xl lg:text-[86px] font-medium leading-none tracking-tight max-w-5xl mb-6">
+    Your job can end.<br />
+    <em class="not-italic text-gold-grad">Your salary shouldn't.</em>
+  </h1>
+
+  <p class="anim-2 font-body text-lg md:text-xl text-cream/50 max-w-2xl leading-relaxed mb-5">
+    We're building India's first <strong class="text-cream/70 font-medium">salary insurance product</strong> — contribute a small % of your monthly income and receive your full salary for up to 6 months if you're involuntarily laid off. We need your voice to build it right.
+  </p>
+
+  <div class="anim-2 flex flex-wrap justify-center gap-2.5 mb-12">
+    <span class="px-3.5 py-1.5 rounded-full border font-body text-xs text-cream/55" style="border-color:rgba(201,168,76,0.2)">✓ &nbsp;Involuntary job loss coverage</span>
+    <span class="px-3.5 py-1.5 rounded-full border font-body text-xs text-cream/55" style="border-color:rgba(201,168,76,0.2)">✓ &nbsp;Up to 6 months full salary</span>
+    <span class="px-3.5 py-1.5 rounded-full border font-body text-xs text-cream/55" style="border-color:rgba(201,168,76,0.2)">✓ &nbsp;Starting from ~1% of income</span>
+    <span class="px-3.5 py-1.5 rounded-full border font-body text-xs text-cream/55" style="border-color:rgba(201,168,76,0.2)">✓ &nbsp;Currently in research phase</span>
+  </div>
+
+  <div class="anim-3 flex flex-col sm:flex-row items-center gap-4">
+    <a href="#survey" class="btn-gold px-9 py-4 rounded-full font-body font-semibold text-ink-900 text-base tracking-wide" style="min-width:240px">
+      Shape This Product →
+    </a>
+    <a href="#company-check" class="btn-ember-outline px-8 py-[15px] rounded-full font-body font-medium text-base tracking-wide" style="min-width:240px">
+      Is my job safe? →
+    </a>
+  </div>
+
+  <div class="anim-3 mt-14 flex flex-col sm:flex-row items-center gap-6 sm:gap-10">
+    <div class="flex -space-x-2.5">
+      <div class="w-8 h-8 rounded-full border-2 border-ink-900 bg-ink-600 flex items-center justify-center text-xs font-body text-gold font-semibold">R</div>
+      <div class="w-8 h-8 rounded-full border-2 border-ink-900 bg-ink-700 flex items-center justify-center text-xs font-body text-gold font-semibold">K</div>
+      <div class="w-8 h-8 rounded-full border-2 border-ink-900 bg-ink-500 flex items-center justify-center text-xs font-body text-gold font-semibold">A</div>
+      <div class="w-8 h-8 rounded-full border-2 border-ink-900 bg-ink-700 flex items-center justify-center text-xs font-body text-cream/40 font-medium">+</div>
+    </div>
+    <p class="font-body text-sm text-cream/40">
+      <span class="text-cream/70 font-medium" id="count-hero">2,847</span> professionals have already responded
+    </p>
+    <div class="hidden sm:block w-px h-5" style="background:rgba(255,255,255,0.1)"></div>
+    <p class="font-body text-xs text-cream/30">Survey takes under 3 minutes</p>
+  </div>
+</section>
+
+<!-- REALITY CHECK -->
+<section id="why" class="py-24 px-6 relative overflow-hidden" style="background:#0D0D0F;scroll-margin-top:140px">
+  <div class="orb w-80 h-80" style="background:rgba(224,85,51,0.06);right:-3rem;top:2rem"></div>
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-14" data-aos="fade-up">
+      <p class="font-body text-xs text-ember tracking-widest uppercase mb-3">The Reality No One Talks About</p>
+      <h2 class="font-display text-4xl md:text-5xl font-medium text-cream leading-tight mb-4">
+        No one believes it will happen<br /><em class="not-italic text-ember-grad">until it does.</em>
+      </h2>
+      <p class="font-body text-cream/45 max-w-xl mx-auto leading-relaxed">
+        Corporate loyalty is gone. Headcount decisions happen overnight. These are not edge cases anymore — they're the new normal in India's job market.
+      </p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-14">
+      <div class="stat-card rounded-2xl p-6" data-aos="fade-up" data-aos-delay="0">
+        <p class="font-display text-5xl font-bold text-ember-grad mb-2">60K+</p>
+        <p class="font-body text-sm text-cream/60 leading-snug mb-1">IT jobs eliminated in India in FY2025 alone</p>
+        <p class="font-body text-xs text-cream/25">Source: NASSCOM / Layoffs.fyi</p>
+      </div>
+      <div class="stat-card rounded-2xl p-6" data-aos="fade-up" data-aos-delay="80">
+        <p class="font-display text-5xl font-bold text-ember-grad mb-2">4.8</p>
+        <p class="font-body text-sm text-cream/60 leading-snug mb-1">months average job search duration in India</p>
+        <p class="font-body text-xs text-cream/25">Source: LinkedIn India Jobs Report</p>
+      </div>
+      <div class="stat-card rounded-2xl p-6" data-aos="fade-up" data-aos-delay="160">
+        <p class="font-display text-5xl font-bold text-ember-grad mb-2">71%</p>
+        <p class="font-body text-sm text-cream/60 leading-snug mb-1">Indian salaried employees have under 3 months savings</p>
+        <p class="font-body text-xs text-cream/25">Source: RBI Household Finance Survey</p>
+      </div>
+      <div class="stat-card rounded-2xl p-6" data-aos="fade-up" data-aos-delay="240">
+        <p class="font-display text-5xl font-bold text-ember-grad mb-2">1 in 3</p>
+        <p class="font-body text-sm text-cream/60 leading-snug mb-1">startup employees laid off without severance in India</p>
+        <p class="font-body text-xs text-cream/25">Source: Inc42 Startup Layoff Tracker</p>
+      </div>
+    </div>
+
+    <div class="rule-ember mb-8" data-aos="fade-up"></div>
+    <blockquote class="text-center max-w-3xl mx-auto" data-aos="fade-up">
+      <p class="font-display text-2xl md:text-3xl font-medium italic text-cream/70 leading-relaxed mb-4">
+        "India has no meaningful income safety net for private sector employees. If you lose your job, you're on your own — immediately."
+      </p>
+      <cite class="font-body text-xs text-cream/30 not-italic tracking-wide">— Economic Times, Special Report on Employment Vulnerability, 2024</cite>
+    </blockquote>
+    <div class="rule-ember mt-8" data-aos="fade-up"></div>
+  </div>
+</section>
+
+<!-- COMPANY RISK CHECK -->
+<section id="company-check" class="relative overflow-hidden px-6 pt-24 pb-24 md:pt-28 md:pb-28" style="background:#14141A;scroll-margin-top:100px">
+  <div class="orb w-[520px] h-[520px]" style="background:rgba(201,168,76,0.08);right:-10rem;top:-6rem"></div>
+  <div class="orb w-80 h-80" style="background:rgba(224,85,51,0.05);left:-5rem;bottom:6rem"></div>
+  <div class="relative max-w-6xl mx-auto">
+    <div class="grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-12 lg:gap-16 items-center">
+
+      <div data-aos="fade-up">
+        <p class="font-body text-xs text-gold tracking-widest uppercase mb-3">Company Risk Check</p>
+        <h2 class="font-display text-4xl md:text-5xl lg:text-[56px] font-medium text-cream leading-[1.08] mb-5">
+          Is your company<br /><em class="not-italic text-gold-grad">at risk?</em>
+        </h2>
+        <p class="font-body text-base md:text-[17px] text-cream/50 leading-relaxed mb-8">
+          An indicative layoff-risk score for the next 3 to 6 months, built only from public data. We show every source, and we leave the score blank when the data is too thin.
+        </p>
+        <form id="rc-search" class="rc-search" autocomplete="off">
+          <label for="rc-q" class="sr-only">Search your company</label>
+          <input id="rc-q" name="q" type="text" maxlength="120" placeholder="Search your company" />
+          <button type="submit" class="btn-gold rounded-full px-6 md:px-8 py-3.5 font-body text-sm font-semibold text-ink-900 tracking-wide">Check →</button>
+        </form>
+        <div class="grid grid-cols-2 gap-x-7 mt-9 font-body text-[13.5px]">
+          <div class="rc-weight"><span>Financial</span><span>20%</span></div>
+          <div class="rc-weight"><span>News &amp; events</span><span>30%</span></div>
+          <div class="rc-weight rc-weight-last"><span>Employee sentiment</span><span>30%</span></div>
+          <div class="rc-weight rc-weight-last"><span>Company profile</span><span>20%</span></div>
+        </div>
+        <p class="font-body text-xs text-cream/40 mt-2.5">Four areas, weighted. Indicative score based on public data. Not a prediction.</p>
+      </div>
+
+      <div id="rc-panel" class="rc-panel" data-aos="fade-up" data-aos-delay="100" aria-live="polite">
+        <p class="font-body text-sm text-cream/45">Loading scorecard…</p>
+      </div>
+    </div>
+
+    <div class="mt-16 md:mt-[72px]" data-aos="fade-up">
+      <div class="flex flex-wrap justify-between items-baseline gap-2 pb-3" style="border-bottom:1px solid rgba(201,168,76,0.45)">
+        <p class="font-display text-2xl font-medium text-cream">Recently checked</p>
+        <p class="font-body text-xs text-cream/45">Indicative scores · public data · not a prediction</p>
+      </div>
+      <div id="rc-list"></div>
+    </div>
+
+    <div class="mt-14 rounded-3xl px-6 py-7 md:px-10 md:py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6"
+         style="border:1px solid rgba(201,168,76,0.2);background:rgba(201,168,76,0.05)" data-aos="fade-up">
+      <div>
+        <p class="font-display text-2xl md:text-[28px] font-medium text-cream leading-snug">A score shows the risk. <em class="not-italic text-gold-grad">Salary Shield is the protection.</em></p>
+        <p class="font-body text-sm md:text-[14.5px] text-cream/50 mt-2">Whatever your company's score, your job can still end. Help us build India's first salary insurance — 3 minutes.</p>
+      </div>
+      <a href="#survey" class="btn-gold flex-none self-start md:self-auto px-8 py-4 rounded-full font-body font-semibold text-ink-900 text-[15px] tracking-wide">Take the Survey →</a>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="py-28 px-6 relative overflow-hidden">
+  <div class="orb w-96 h-96" style="background:rgba(201,168,76,0.07);left:-4rem;top:4rem"></div>
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-16" data-aos="fade-up">
+      <p class="font-body text-xs text-gold tracking-widest uppercase mb-3">The Product Vision</p>
+      <h2 class="font-display text-4xl md:text-5xl font-medium text-cream leading-tight mb-4">How Salary Shield will work.</h2>
+      <p class="font-body text-cream/45 max-w-xl mx-auto leading-relaxed">
+        We haven't launched yet. This is the model we're designing — your survey shapes the final product.
+      </p>
+    </div>
+    <div class="grid md:grid-cols-3 gap-0 relative">
+      <div class="relative flex flex-col items-center text-center px-8 pb-10 md:pb-0" data-aos="fade-up" data-aos-delay="0">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center mb-7 font-display text-lg font-bold text-ink-900 relative z-10"
+             style="background:linear-gradient(135deg,#E8C76A,#C9A84C)">01</div>
+        <div class="hidden md:block absolute top-6 left-[calc(50%+24px)] right-0 step-line"></div>
+        <h3 class="font-display text-xl font-medium text-cream mb-3">Enrol & Set Your Premium</h3>
+        <p class="font-body text-sm text-cream/45 leading-relaxed">Choose how much of your income to contribute monthly — between 2.5% and 7.5%. Your coverage amount and duration are set accordingly.</p>
+      </div>
+      <div class="relative flex flex-col items-center text-center px-8 pb-10 md:pb-0" data-aos="fade-up" data-aos-delay="120">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center mb-7 font-display text-lg font-bold text-ink-900 relative z-10"
+             style="background:linear-gradient(135deg,#E8C76A,#C9A84C)">02</div>
+        <div class="hidden md:block absolute top-6 left-[calc(50%+24px)] right-0 step-line"></div>
+        <h3 class="font-display text-xl font-medium text-cream mb-3">Pay a Small Monthly Premium</h3>
+        <p class="font-body text-sm text-cream/45 leading-relaxed">Your contribution is auto-debited — less than what most people spend on a weekend outing. It goes into a regulated pooled fund.</p>
+      </div>
+      <div class="relative flex flex-col items-center text-center px-8" data-aos="fade-up" data-aos-delay="240">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center mb-7 font-display text-lg font-bold text-ink-900 relative z-10"
+             style="background:linear-gradient(135deg,#E8C76A,#C9A84C)">03</div>
+        <h3 class="font-display text-xl font-medium text-cream mb-3">Claim If Laid Off Involuntarily</h3>
+        <p class="font-body text-sm text-cream/45 leading-relaxed">Submit your claim with proof of redundancy. After verification, receive your full monthly salary credited directly to your bank — for up to 6 months.</p>
+      </div>
+    </div>
+    <div class="mt-14 mx-auto max-w-2xl rounded-2xl p-5 border text-center" data-aos="fade-up"
+         style="border-color:rgba(201,168,76,0.15);background:rgba(201,168,76,0.04)">
+      <p class="font-body text-sm text-cream/50 leading-relaxed">
+        <span class="text-gold font-medium">This product doesn't exist yet</span> — we are in active research and design.
+        Your survey response directly shapes what gets built, who gets priority access, and how premiums are priced.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- SURVEY FORM -->
+<section id="survey" class="py-20 px-6 relative overflow-hidden"
+         style="background:#14141A;scroll-margin-top:140px">
+  <div class="orb w-80 h-80" style="background:rgba(201,168,76,0.07);right:-3rem;top:4rem"></div>
+  <div class="orb w-64 h-64" style="background:rgba(224,85,51,0.05);left:-2rem;bottom:4rem"></div>
+
+  <div class="max-w-2xl mx-auto">
+    <div class="text-center mb-10" data-aos="fade-up">
+      <p class="font-body text-xs text-gold tracking-widest uppercase mb-3">Shape This Product</p>
+      <h2 class="font-display text-4xl md:text-5xl font-medium text-cream mb-4">Tell us about yourself.</h2>
+      <p class="font-body text-cream/45 leading-relaxed max-w-md mx-auto">
+        3 minutes. 5 steps. No payment, no commitment. Early respondents get founding-member pricing when we launch.
+      </p>
+    </div>
+
+    <div id="form-card" class="rounded-3xl border p-8 md:p-10 relative" data-aos="fade-up" data-aos-delay="100"
+         style="background:rgba(20,20,26,0.9);border-color:rgba(201,168,76,0.2);backdrop-filter:blur(16px)">
+
+      <div class="mb-8">
+        <div class="flex justify-between items-center mb-2.5">
+          <p class="font-body text-xs text-cream/40 tracking-wide" id="step-label">Step 1 of 5</p>
+          <p class="font-body text-xs text-gold/70" id="step-pct">20%</p>
+        </div>
+        <div class="h-1 rounded-full overflow-hidden" style="background:rgba(255,255,255,0.07)">
+          <div id="form-progress-bar" class="h-full rounded-full" style="width:20%;background:linear-gradient(90deg,#E8C76A,#C9A84C)"></div>
+        </div>
+        <div class="flex justify-between mt-3 px-0.5">
+          <div class="flex items-center gap-1.5" id="dot-0"><span class="w-2 h-2 rounded-full bg-gold"></span><span class="font-body text-xs text-gold hidden sm:block">About You</span></div>
+          <div class="flex items-center gap-1.5" id="dot-1"><span class="w-2 h-2 rounded-full bg-ink-500"></span><span class="font-body text-xs text-cream/30 hidden sm:block">Your Work</span></div>
+          <div class="flex items-center gap-1.5" id="dot-2"><span class="w-2 h-2 rounded-full bg-ink-500"></span><span class="font-body text-xs text-cream/30 hidden sm:block">Your Salary</span></div>
+          <div class="flex items-center gap-1.5" id="dot-3"><span class="w-2 h-2 rounded-full bg-ink-500"></span><span class="font-body text-xs text-cream/30 hidden sm:block">Your Concerns</span></div>
+          <div class="flex items-center gap-1.5" id="dot-4"><span class="w-2 h-2 rounded-full bg-ink-500"></span><span class="font-body text-xs text-cream/30 hidden sm:block">Contact</span></div>
+        </div>
+      </div>
+
+      <div id="step-error-banner" class="hidden mb-5 px-4 py-3 rounded-xl font-body text-sm text-ember"
+           style="background:rgba(224,85,51,0.08);border:1px solid rgba(224,85,51,0.25)">
+        Please fill in all required fields before continuing.
+      </div>
+
+      <form id="survey-form" novalidate>
+
+        <!-- STEP 1 -->
+        <div class="form-step active" id="step-1">
+          <h3 class="font-display text-2xl font-medium text-cream mb-6">About you</h3>
+          <div class="space-y-5">
+            <div class="field-group">
+              <label class="field-label" for="f-name">Full Name <span class="text-ember/70">*</span></label>
+              <input class="field-input" type="text" id="f-name" name="name" placeholder="Sundar Pichai" />
+              <p class="error-msg" id="err-name">Please enter your name.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="field-group">
+                <label class="field-label" for="f-age">Age <span class="text-ember/70">*</span></label>
+                <select class="field-input" id="f-age" name="age">
+                  <option value="" disabled selected>Select range</option>
+                  <option>Under 22</option><option>22 – 27</option><option>28 – 33</option>
+                  <option>34 – 40</option><option>41 – 50</option><option>Over 50</option>
+                </select>
+                <p class="error-msg" id="err-age">Please select your age range.</p>
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="f-gender">Gender <span class="text-ember/70">*</span></label>
+                <select class="field-input" id="f-gender" name="gender">
+                  <option value="" disabled selected>Select</option>
+                  <option>Male</option><option>Female</option>
+                  <option>Non-binary</option><option>Prefer not to say</option>
+                </select>
+                <p class="error-msg" id="err-gender">Please select your gender.</p>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="f-city">City / Region <span class="text-ember/70">*</span></label>
+              <select class="field-input" id="f-city" name="city">
+                <option value="" disabled selected>Select your city</option>
+                <option>Bengaluru</option><option>Mumbai</option><option>Delhi / NCR</option>
+                <option>Hyderabad</option><option>Pune</option><option>Chennai</option>
+                <option>Kolkata</option><option>Ahmedabad</option>
+                <option>Tier 2 city</option><option>Outside India</option>
+              </select>
+              <p class="error-msg" id="err-city">Please select your city.</p>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Marital Status</label>
+              <div class="pill-grid" id="pg-marital">
+                <input type="radio" class="pill-option" name="marital" id="m1" value="Single" /><label class="pill-label" for="m1">Single</label>
+                <input type="radio" class="pill-option" name="marital" id="m2" value="Married" /><label class="pill-label" for="m2">Married</label>
+                <input type="radio" class="pill-option" name="marital" id="m3" value="Married with kids" /><label class="pill-label" for="m3">Married with kids</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="form-step" id="step-2">
+          <h3 class="font-display text-2xl font-medium text-cream mb-6">Your professional life</h3>
+          <div class="space-y-5">
+            <div class="field-group">
+              <label class="field-label" for="f-industry">Industry <span class="text-ember/70">*</span></label>
+              <select class="field-input" id="f-industry" name="industry">
+                <option value="" disabled selected>Select your industry</option>
+                <option>IT / Software</option><option>Banking / Financial Services</option>
+                <option>Consulting</option><option>Pharma / Life Sciences</option>
+                <option>E-commerce</option><option>Media / Advertising</option>
+                <option>Manufacturing</option><option>Telecom</option>
+                <option>Healthcare</option><option>Education / EdTech</option>
+                <option>Government / PSU</option><option>Startup</option><option>Other</option>
+              </select>
+              <p class="error-msg" id="err-industry">Please select your industry.</p>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="f-role">Job Role / Function <span class="text-ember/70">*</span></label>
+              <select class="field-input" id="f-role" name="role">
+                <option value="" disabled selected>Select your function</option>
+                <option>Engineering / Technology</option><option>Product Management</option>
+                <option>Data & Analytics</option><option>Sales & Business Development</option>
+                <option>Marketing</option><option>Finance / Accounting</option>
+                <option>HR / People Operations</option><option>Operations / Supply Chain</option>
+                <option>Design / UX</option><option>Legal / Compliance</option>
+                <option>General Management</option><option>Other</option>
+              </select>
+              <p class="error-msg" id="err-role">Please select your job role.</p>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Seniority Level <span class="text-ember/70">*</span></label>
+              <div class="pill-grid" id="pg-seniority">
+                <input type="radio" class="pill-option" name="seniority" id="s1" value="Fresher (0-2 yrs)" /><label class="pill-label" for="s1">Fresher (0–2 yrs)</label>
+                <input type="radio" class="pill-option" name="seniority" id="s2" value="Mid-level (3-6 yrs)" /><label class="pill-label" for="s2">Mid-level (3–7 yrs)</label>
+                <input type="radio" class="pill-option" name="seniority" id="s3" value="Senior (7-12 yrs)" /><label class="pill-label" for="s3">Senior (8–14 yrs)</label>
+		<input type="radio" class="pill-option" name="seniority" id="s4" value="Mid-Management (12-18 yrs)" /><label class="pill-label" for="s4">Mid-Management (12-18 yrs)</label>
+                <input type="radio" class="pill-option" name="seniority" id="s5" value="Leadership (18-25 yrs)" /><label class="pill-label" for="s5">Leadership (18-25 yrs)</label>
+		<input type="radio" class="pill-option" name="seniority" id="s6" value="Executive (25+ yrs)" /><label class="pill-label" for="s6">Executive (25+ yrs)</label>
+              </div>
+              <p class="error-msg" id="err-seniority">Please select your seniority level.</p>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Employment Type <span class="text-ember/70">*</span></label>
+              <div class="pill-grid" id="pg-emptype">
+                <input type="radio" class="pill-option" name="emptype" id="e1" value="Full-time permanent" /><label class="pill-label" for="e1">Full-time (Permanent)</label>
+                <input type="radio" class="pill-option" name="emptype" id="e2" value="Contract" /><label class="pill-label" for="e2">Contract</label>
+                <input type="radio" class="pill-option" name="emptype" id="e3" value="Freelance" /><label class="pill-label" for="e3">Freelance</label>
+                <input type="radio" class="pill-option" name="emptype" id="e4" value="Founder" /><label class="pill-label" for="e4">Founder</label>
+              </div>
+              <p class="error-msg" id="err-emptype">Please select your employment type.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="form-step" id="step-3">
+          <h3 class="font-display text-2xl font-medium text-cream mb-6">Your income</h3>
+          <div class="space-y-7">
+            <div class="field-group">
+              <label class="field-label" for="f-salary">Monthly Gross Salary (₹) <span class="text-ember/70">*</span></label>
+              <select class="field-input" id="f-salary" name="salary_bracket">
+                <option value="" disabled selected>Select your salary range</option>
+                <option>Below ₹25,000</option>
+                <option>₹25,000 – ₹50,000</option>
+                <option>₹50,000 – ₹1,00,000</option>
+                <option>₹1,00,000 – ₹2,00,000</option>
+                <option>₹2,00,000 – ₹3,50,000</option>
+		<option>₹3,50,000 – ₹6,00,000</option>
+		<option>₹6,00,000 – ₹10,00,000</option>
+                <option>Above ₹10,00,000</option>
+                <option>Prefer not to say</option>
+              </select>
+              <p class="error-msg" id="err-salary">Please select your salary range.</p>
+            </div>
+            <div class="field-group">
+              <div class="flex justify-between items-baseline mb-3">
+                <label class="field-label">Monthly premium you'd comfortably pay</label>
+                <span class="font-display text-xl font-medium text-gold" id="prem-display">5.0%</span>
+              </div>
+              <input type="range" class="range-input" id="prem-slider" name="premium_pct" min="2.5" max="7.5" step="0.5" value="5.0" />
+              <div class="flex justify-between mt-2">
+                <span class="font-body text-xs text-cream/25">2.5% / mo</span>
+                <span class="font-body text-xs text-cream/40 text-center">of your monthly salary</span>
+                <span class="font-body text-xs text-cream/25">7.5% / mo</span>
+              </div>
+              <div class="mt-4 rounded-xl p-4 border flex items-center justify-between"
+                   style="border-color:rgba(201,168,76,0.15);background:rgba(201,168,76,0.04)">
+                <div>
+                  <p class="font-body text-xs text-cream/40 mb-0.5">That's roughly</p>
+                  <p class="font-display text-2xl font-medium text-gold-grad" id="prem-rupee">— / month</p>
+                </div>
+                <div class="text-right">
+                  <p class="font-body text-xs text-cream/40 mb-0.5">Total payout if claimed</p>
+                  <p class="font-display text-xl font-medium text-cream/70" id="prem-payout">—</p>
+                </div>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Preferred coverage duration <span class="text-ember/70">*</span></label>
+              <div class="pill-grid" id="pg-coverage">
+                <input type="radio" class="pill-option" name="coverage_months" id="c1" value="2" /><label class="pill-label" for="c1">2 months</label>
+                <input type="radio" class="pill-option" name="coverage_months" id="c2" value="3" /><label class="pill-label" for="c2">3 months</label>
+                <input type="radio" class="pill-option" name="coverage_months" id="c3" value="4" /><label class="pill-label" for="c3">4 months</label>
+                <input type="radio" class="pill-option" name="coverage_months" id="c4" value="6" /><label class="pill-label" for="c4">6 months</label>
+              </div>
+              <p class="error-msg" id="err-coverage">Please select a coverage duration.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="form-step" id="step-4">
+          <h3 class="font-display text-2xl font-medium text-cream mb-6">Your concerns</h3>
+          <div class="space-y-6">
+            <div class="field-group">
+              <label class="field-label">How worried are you about involuntary job loss in the next 2 years? <span class="text-ember/70">*</span></label>
+              <div class="pill-grid" id="pg-worry">
+                <input type="radio" class="pill-option" name="worry_level" id="w1" value="Not worried" /><label class="pill-label" for="w1">Not worried</label>
+                <input type="radio" class="pill-option" name="worry_level" id="w2" value="Slightly concerned" /><label class="pill-label" for="w2">Slightly concerned</label>
+                <input type="radio" class="pill-option" name="worry_level" id="w3" value="Quite concerned" /><label class="pill-label" for="w3">Quite concerned</label>
+                <input type="radio" class="pill-option" name="worry_level" id="w4" value="Very worried" /><label class="pill-label" for="w4">Very worried</label>
+              </div>
+              <p class="error-msg" id="err-worry">Please select your concern level.</p>
+            </div>
+            <div class="field-group">
+              <label class="field-label">How many months of savings do you currently have?</label>
+              <div class="pill-grid">
+                <input type="radio" class="pill-option" name="savings_months" id="sv1" value="Under 1 month" /><label class="pill-label" for="sv1">Under 1 month</label>
+                <input type="radio" class="pill-option" name="savings_months" id="sv2" value="1–3 months" /><label class="pill-label" for="sv2">1–3 months</label>
+                <input type="radio" class="pill-option" name="savings_months" id="sv3" value="3–6 months" /><label class="pill-label" for="sv3">3–6 months</label>
+                <input type="radio" class="pill-option" name="savings_months" id="sv4" value="6+ months" /><label class="pill-label" for="sv4">6+ months</label>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Are you aware of any existing salary protection products in India?</label>
+              <div class="pill-grid">
+                <input type="radio" class="pill-option" name="awareness" id="aw1" value="No, never heard of one" /><label class="pill-label" for="aw1">No, never heard of one</label>
+                <input type="radio" class="pill-option" name="awareness" id="aw2" value="Heard of similar abroad" /><label class="pill-label" for="aw2">Heard of similar abroad</label>
+                <input type="radio" class="pill-option" name="awareness" id="aw3" value="Yes, I use one" /><label class="pill-label" for="aw3">Yes, I use one</label>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">If Salary Shield launched tomorrow, how likely are you to subscribe? <span class="text-ember/70">*</span></label>
+              <div class="pill-grid" id="pg-intent">
+                <input type="radio" class="pill-option" name="subscribe_intent" id="si1" value="Definitely would" /><label class="pill-label" for="si1">Definitely would</label>
+                <input type="radio" class="pill-option" name="subscribe_intent" id="si2" value="Very likely" /><label class="pill-label" for="si2">Very likely</label>
+                <input type="radio" class="pill-option" name="subscribe_intent" id="si3" value="Maybe" /><label class="pill-label" for="si3">Maybe</label>
+                <input type="radio" class="pill-option" name="subscribe_intent" id="si4" value="Unlikely" /><label class="pill-label" for="si4">Unlikely</label>
+              </div>
+              <p class="error-msg" id="err-intent">Please select your likelihood to subscribe.</p>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="f-feedback">Any other thoughts or features you'd want? (optional)</label>
+              <textarea class="field-input" id="f-feedback" name="feedback" rows="3"
+                placeholder="e.g. I'd want it to cover freelance income / family plan option..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 5 -->
+        <div class="form-step" id="step-5">
+          <h3 class="font-display text-2xl font-medium text-cream mb-2">Stay in the loop</h3>
+          <p class="font-body text-sm text-cream/45 leading-relaxed mb-7">Leave your details and you'll be the first to know when we launch — with founding member rates locked in for you.</p>
+          <div class="space-y-5">
+            <div class="field-group">
+              <label class="field-label" for="f-email">Email Address <span class="text-ember/70">*</span></label>
+              <input class="field-input" type="email" id="f-email" name="email" placeholder="sundar@example.com" />
+              <p class="error-msg" id="err-email">Please enter a valid email address.</p>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="f-phone">Mobile Number (optional)</label>
+              <input class="field-input" type="tel" id="f-phone" name="phone" placeholder="+91 98765 43210" />
+            </div>
+            <div class="space-y-3 pt-1">
+              <label class="flex items-start gap-3 cursor-pointer group">
+                <input type="checkbox" id="f-consent"
+                  class="mt-0.5 w-4 h-4 rounded cursor-pointer flex-shrink-0"
+                  style="accent-color:#C9A84C" />
+                <span class="font-body text-xs text-cream/45 leading-relaxed group-hover:text-cream/65 transition-colors">
+                  I agree that Salary Shield may contact me about this research and product updates. My data will never be sold to third parties.
+                </span>
+              </label>
+              <p class="error-msg ml-7" id="err-consent">You must accept to submit your response.</p>
+              <label class="flex items-start gap-3 cursor-pointer group">
+                <input type="checkbox" id="f-founding"
+                  class="mt-0.5 w-4 h-4 rounded cursor-pointer flex-shrink-0"
+                  style="accent-color:#C9A84C" />
+                <span class="font-body text-xs text-cream/45 leading-relaxed group-hover:text-cream/65 transition-colors">
+                  I'd like to be considered as a <span class="text-gold/70">founding member</span> and may be contacted for follow-up research interviews.
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- SUCCESS -->
+        <div class="form-step text-center py-8" id="step-success">
+          <div class="w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center text-2xl"
+               style="background:linear-gradient(135deg,rgba(201,168,76,0.2),rgba(201,168,76,0.05));border:1px solid rgba(201,168,76,0.3)">
+            🛡️
+          </div>
+          <h3 class="font-display text-3xl font-medium text-cream mb-3">You're in.</h3>
+          <p class="font-body text-cream/50 leading-relaxed mb-2 max-w-sm mx-auto">
+            Thank you — your response has been recorded. You'll hear from us first when Salary Shield launches.
+          </p>
+          <p class="font-body text-xs text-gold/60">Founding member status noted ✓</p>
+        </div>
+
+        <!-- NAV BUTTONS -->
+        <div class="flex justify-between items-center mt-10 pt-6 border-t" id="form-nav"
+             style="border-color:rgba(255,255,255,0.07)">
+          <button type="button" id="btn-back"
+            class="font-body text-sm text-cream/40 hover:text-cream/70 transition-colors px-2"
+            style="display:none">← Back</button>
+          <div class="ml-auto flex items-center gap-3">
+            <button type="button" id="btn-next"
+              class="btn-gold px-8 py-3 rounded-full font-body font-semibold text-ink-900 text-sm tracking-wide">
+              Continue →
+            </button>
+            <button type="submit" id="btn-submit"
+              class="btn-gold px-8 py-3 rounded-full font-body font-semibold text-ink-900 text-sm tracking-wide"
+              style="display:none">
+              Submit Response →
+            </button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    <p class="text-center font-body text-xs text-cream/25 mt-5">
+      No payment, no commitment, no spam. Research survey only.
+    </p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" class="py-24 px-6" style="scroll-margin-top:140px">
+  <div class="max-w-3xl mx-auto">
+    <div class="text-center mb-14" data-aos="fade-up">
+      <p class="font-body text-xs text-gold tracking-widest uppercase mb-3">About This Effort</p>
+      <h2 class="font-display text-4xl md:text-5xl font-medium text-cream mb-4">
+        We're building this<br /><em class="not-italic text-gold-grad">transparently.</em>
+      </h2>
+      <p class="font-body text-cream/45 max-w-lg mx-auto">Questions about where we are, what we're doing, and what your data is used for.</p>
+    </div>
+    <div class="space-y-px" data-aos="fade-up">
+
+      <details class="group border-b" style="border-color:rgba(255,255,255,0.07)">
+        <summary class="py-4 flex justify-between items-center cursor-pointer list-none font-body text-sm font-medium text-cream/75 hover:text-cream transition-colors">
+          What stage is Salary Shield at right now?
+          <span class="text-gold text-lg transition-transform group-open:rotate-45 flex-shrink-0 ml-4">+</span>
+        </summary>
+        <p class="pb-5 font-body text-sm text-cream/45 leading-relaxed">We are in the <strong class="text-cream/65">demand validation phase</strong> — the very first step before any product is built. This survey helps us understand whether the problem is real enough, who feels it most acutely, and what price people would genuinely pay. No product exists yet, and no regulatory licences have been filed. We are a small founding team conducting structured market research.</p>
+      </details>
+
+      <details class="group border-b" style="border-color:rgba(255,255,255,0.07)">
+        <summary class="py-4 flex justify-between items-center cursor-pointer list-none font-body text-sm font-medium text-cream/75 hover:text-cream transition-colors">
+          Are you working with IRDAI or any licensed insurer?
+          <span class="text-gold text-lg transition-transform group-open:rotate-45 flex-shrink-0 ml-4">+</span>
+        </summary>
+        <p class="pb-5 font-body text-sm text-cream/45 leading-relaxed">Not yet — but this is on our explicit roadmap. Once we validate demand through this survey, our next step is to engage with a licensed non-life insurer as an underwriting partner and begin the IRDAI product filing process. Income protection insurance falls under non-life (general insurance) in India. We have already taken preliminary legal counsel on the regulatory path.</p>
+      </details>
+
+      <details class="group border-b" style="border-color:rgba(255,255,255,0.07)">
+        <summary class="py-4 flex justify-between items-center cursor-pointer list-none font-body text-sm font-medium text-cream/75 hover:text-cream transition-colors">
+          How will my survey response actually influence the product?
+          <span class="text-gold text-lg transition-transform group-open:rotate-45 flex-shrink-0 ml-4">+</span>
+        </summary>
+        <p class="pb-5 font-body text-sm text-cream/45 leading-relaxed">Directly and specifically. We use the data to: (1) identify which industries and salary bands have the strongest demand — these get prioritised for the first coverage pool, (2) set premium % brackets that are actuarially viable but actually affordable, (3) decide on coverage duration (3 vs 6 vs 12 months), and (4) identify features that belong in V1 rather than saved for later.</p>
+      </details>
+
+      <details class="group border-b" style="border-color:rgba(255,255,255,0.07)">
+        <summary class="py-4 flex justify-between items-center cursor-pointer list-none font-body text-sm font-medium text-cream/75 hover:text-cream transition-colors">
+          When do you plan to launch the actual product?
+          <span class="text-gold text-lg transition-transform group-open:rotate-45 flex-shrink-0 ml-4">+</span>
+        </summary>
+        <p class="pb-5 font-body text-sm text-cream/45 leading-relaxed">Our target is a limited pilot in <strong class="text-cream/65">Q4 2026</strong>, subject to completing this research phase, securing an insurance underwriting partner, and IRDAI product approval (typically 3–6 months). We will communicate clearly with all survey respondents about milestones and will not overpromise timelines.</p>
+      </details>
+
+      <details class="group border-b" style="border-color:rgba(255,255,255,0.07)">
+        <summary class="py-4 flex justify-between items-center cursor-pointer list-none font-body text-sm font-medium text-cream/75 hover:text-cream transition-colors">
+          What happens to my personal data?
+          <span class="text-gold text-lg transition-transform group-open:rotate-45 flex-shrink-0 ml-4">+</span>
+        </summary>
+        <p class="pb-5 font-body text-sm text-cream/45 leading-relaxed">Your individual response is never shared or sold. We analyse survey data in <strong class="text-cream/65">aggregate only</strong>. Your name and email are stored separately from your survey answers and used only to contact you about Salary Shield updates. You can request deletion at any time by emailing us. We comply with India's DPDP Act 2023.</p>
+      </details>
+
+      <details class="group border-b" style="border-color:rgba(255,255,255,0.07)">
+        <summary class="py-4 flex justify-between items-center cursor-pointer list-none font-body text-sm font-medium text-cream/75 hover:text-cream transition-colors">
+          Does India's insurance industry already offer anything like this?
+          <span class="text-gold text-lg transition-transform group-open:rotate-45 flex-shrink-0 ml-4">+</span>
+        </summary>
+        <p class="pb-5 font-body text-sm text-cream/45 leading-relaxed">No standalone income-protection product exists in India's retail market today. Some group policies bundled with home loans cover EMI protection on job loss, but these are narrow, loan-linked products. In the UK, Income Protection Insurance is mainstream. In the US, short-term disability insurance plays a similar role. India is a decade behind — and that's the gap we're building for.</p>
+      </details>
+
+      <details class="group" style="border-color:rgba(255,255,255,0.07)">
+        <summary class="py-4 flex justify-between items-center cursor-pointer list-none font-body text-sm font-medium text-cream/75 hover:text-cream transition-colors">
+          What does "founding member" status mean?
+          <span class="text-gold text-lg transition-transform group-open:rotate-45 flex-shrink-0 ml-4">+</span>
+        </summary>
+        <p class="pb-5 font-body text-sm text-cream/45 leading-relaxed">Founding members are survey respondents who opted in for follow-up contact. When we launch they receive: (1) priority access before general availability, (2) a permanently locked premium rate below standard launch pricing, and (3) the option to join a founding member advisory group that shapes the product roadmap. No obligations, no payment required now.</p>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="border-t py-10 px-6" style="border-color:rgba(255,255,255,0.05)">
+  <div class="max-w-6xl mx-auto">
+    <div class="flex flex-col md:flex-row items-start justify-between gap-8 mb-10">
+      <div class="max-w-xs">
+        <div class="flex items-center gap-2.5 mb-3">
+          <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+            <path d="M14 2L4 6.5V14C4 19.5 8.5 24.5 14 26C19.5 24.5 24 19.5 24 14V6.5L14 2Z" fill="url(#sg2)"/>
+            <text x="9.5" y="18.5" font-family="Playfair Display,serif" font-size="12" font-weight="700" fill="#0D0D0F">S</text>
+            <defs><linearGradient id="sg2" x1="4" y1="2" x2="24" y2="26" gradientUnits="userSpaceOnUse"><stop stop-color="#E8C76A"/><stop offset="1" stop-color="#9A7A30"/></linearGradient></defs>
+          </svg>
+          <span class="font-body font-semibold text-cream/80 text-sm">Salary Shield</span>
+        </div>
+        <p class="font-body text-xs text-cream/30 leading-relaxed">India's first salary insurance — currently in demand research. If you lose your job, your income shouldn't stop.</p>
+      </div>
+      <div class="flex flex-wrap gap-x-12 gap-y-4">
+        <div>
+          <p class="font-body text-xs text-cream/25 uppercase tracking-wider mb-2">Navigate</p>
+          <a href="#survey" class="block font-body text-xs text-cream/40 hover:text-cream/70 transition-colors">Take the survey</a>
+        </div>
+        <div>
+          <p class="font-body text-xs text-cream/25 uppercase tracking-wider mb-2">Contact Us</p>
+          <a href="mailto:hello.salaryshield@gmail.com" class="block font-body text-xs text-cream/40 hover:text-cream/70 transition-colors">hello.salaryshield@gmail.com</a>
+        </div>
+      </div>
+    </div>
+    <div class="rule-gold mb-5"></div>
+    <p class="font-body text-xs text-cream/20 leading-relaxed">
+      © 2026 Salary Shield Research. This website is a demand validation exercise and does not constitute the offer or sale of any insurance product. Salary Shield is not currently registered with IRDAI or any financial regulator. No premiums are being collected. Survey data is used solely for product research purposes in accordance with India's DPDP Act 2023.
+    </p>
+  </div>
+</footer>
+
+<!-- SCRIPTS -->
+<script>
+const SUPABASE_URL     = 'https://vicdjyjgtdxzitwzdfeg.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_j5kMuqO-d5NS-xxuhgdSqw_xEfZsA93';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+AOS.init({ duration:720, easing:'ease-out-cubic', once:true, offset:50 });
+
+// Nav tint on scroll
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.style.borderBottomColor = window.scrollY > 50
+    ? 'rgba(201,168,76,0.14)' : 'rgba(255,255,255,0.04)';
+}, { passive:true });
+
+// Counter animation
+(function() {
+  const els = document.querySelectorAll('#count-hero');
+  const target = 2847;
+  let cur = target - 85;
+  setTimeout(() => {
+    const go = () => {
+      cur = Math.min(cur + Math.ceil(Math.random() * 4), target);
+      els.forEach(e => e.textContent = cur.toLocaleString('en-IN'));
+      if (cur < target) requestAnimationFrame(go);
+    };
+    go();
+  }, 1200);
+})();
+
+// INR formatter
+function fmtINR(n) {
+  if (n >= 100000) return '₹' + (n / 100000).toFixed(1).replace('.0','') + 'L';
+  if (n >= 1000)   return '₹' + (n / 1000).toFixed(0) + 'K';
+  return '₹' + n;
+}
+
+// Salary → midpoint map
+const salMap = {
+  'Below ₹25,000': 20000,
+  '₹25,000 – ₹50,000': 37500,
+  '₹50,000 – ₹1,00,000': 75000,
+  '₹1,00,000 – ₹2,00,000': 150000,
+  '₹2,00,000 – ₹3,50,000': 275000,
+  'Above ₹3,50,000': 400000,
+};
+
+// Premium calculator
+function updatePremium() {
+  const pct    = parseFloat(document.getElementById('prem-slider').value);
+  const salSel = document.getElementById('f-salary');
+  const sal    = salMap[salSel ? salSel.value : ''] || null;
+  const covPill = document.querySelector('input[name="coverage_months"]:checked');
+  const months  = covPill ? parseInt(covPill.value) : null;
+
+  document.getElementById('prem-display').textContent = pct.toFixed(1) + '%';
+
+  if (sal) {
+    const mo = Math.round(sal * pct / 100);
+    document.getElementById('prem-rupee').textContent = fmtINR(mo) + ' / month';
+    document.getElementById('prem-payout').textContent = months
+      ? fmtINR(sal * months) + ' total'
+      : 'Select duration above';
+  } else {
+    document.getElementById('prem-rupee').textContent  = pct.toFixed(1) + '% of your salary';
+    document.getElementById('prem-payout').textContent = 'Select salary above';
+  }
+}
+
+document.getElementById('prem-slider').addEventListener('input', updatePremium);
+document.addEventListener('change', e => {
+  if (e.target.id === 'f-salary' || e.target.name === 'coverage_months') updatePremium();
+});
+updatePremium();
+
+// Validation rules
+const stepRules = {
+  1: [{ id:'f-name',   type:'text',   errId:'err-name',   msg:'Please enter your name.' },
+      { id:'f-age',    type:'select', errId:'err-age',    msg:'Please select your age range.' },
+      { id:'f-gender', type:'select', errId:'err-gender', msg:'Please select your gender.' },
+      { id:'f-city',   type:'select', errId:'err-city',   msg:'Please select your city.' }],
+  2: [{ id:'f-industry', type:'select', errId:'err-industry', msg:'Please select your industry.' },
+      { id:'f-role',     type:'select', errId:'err-role',     msg:'Please select your job role.' },
+      { name:'seniority', type:'radio', errId:'err-seniority', pgId:'pg-seniority', msg:'Please select your seniority level.' },
+      { name:'emptype',   type:'radio', errId:'err-emptype',   pgId:'pg-emptype',   msg:'Please select your employment type.' }],
+  3: [{ id:'f-salary', type:'select', errId:'err-salary', msg:'Please select your salary range.' },
+      { name:'coverage_months', type:'radio', errId:'err-coverage', pgId:'pg-coverage', msg:'Please select a coverage duration.' }],
+  4: [{ name:'worry_level',    type:'radio', errId:'err-worry',  pgId:'pg-worry',  msg:'Please select your concern level.' },
+      { name:'subscribe_intent', type:'radio', errId:'err-intent', pgId:'pg-intent', msg:'Please select your likelihood to subscribe.' }],
+  5: [{ id:'f-email',   type:'email',    errId:'err-email',   msg:'Please enter a valid email address.' },
+      { id:'f-consent', type:'checkbox', errId:'err-consent', msg:'You must accept to submit your response.' }]
+};
+
+function clearErrors(step) {
+  (stepRules[step] || []).forEach(r => {
+    document.getElementById(r.errId)?.classList.remove('visible');
+    if (r.id)   document.getElementById(r.id)?.classList.remove('field-error');
+    if (r.pgId) document.getElementById(r.pgId)?.classList.remove('group-error');
+  });
+  document.getElementById('step-error-banner').classList.add('hidden');
+}
+
+function validateStep(step) {
+  const rules = stepRules[step] || [];
+  let valid = true;
+  rules.forEach(r => {
+    let ok = true;
+    if (r.type === 'radio')    { ok = !!document.querySelector(`input[name="${r.name}"]:checked`); }
+    else if (r.type === 'checkbox') { ok = !!document.getElementById(r.id)?.checked; }
+    else if (r.type === 'email') {
+      const val = document.getElementById(r.id)?.value.trim() || '';
+      ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+    } else { ok = (document.getElementById(r.id)?.value.trim() || '') !== ''; }
+
+    if (!ok) {
+      valid = false;
+      const errEl = document.getElementById(r.errId);
+      if (errEl) { errEl.textContent = r.msg; errEl.classList.add('visible'); }
+      if (r.id)   document.getElementById(r.id)?.classList.add('field-error');
+      if (r.pgId) document.getElementById(r.pgId)?.classList.add('group-error');
+    }
+  });
+  if (!valid) document.getElementById('step-error-banner').classList.remove('hidden');
+  return valid;
+}
+
+// Step indicator dots
+const dotLabels = ['About You','Your Work','Your Salary','Your Concerns','Contact'];
+function updateDots(n) {
+  for (let i = 0; i < 5; i++) {
+    const dot = document.getElementById('dot-' + i);
+    if (!dot) continue;
+    const circle = dot.querySelector('span:first-child');
+    const label  = dot.querySelector('span:last-child');
+    if (i < n - 1) {
+      circle.className = 'w-2 h-2 rounded-full bg-gold/40';
+      label.className  = 'font-body text-xs text-cream/25 hidden sm:block';
+    } else if (i === n - 1) {
+      circle.className = 'w-2 h-2 rounded-full bg-gold';
+      label.className  = 'font-body text-xs text-gold hidden sm:block';
+    } else {
+      circle.className = 'w-2 h-2 rounded-full bg-ink-500';
+      label.className  = 'font-body text-xs text-cream/30 hidden sm:block';
+    }
+  }
+}
+
+// Multi-step navigation
+const totalSteps = 5;
+let currentStep = 1;
+const stepPcts  = [20, 40, 60, 80, 100];
+
+function showStep(n) {
+  document.querySelectorAll('.form-step').forEach(el => el.classList.remove('active'));
+  document.getElementById('step-' + n)?.classList.add('active');
+  document.getElementById('step-label').textContent = 'Step ' + n + ' of ' + totalSteps;
+  document.getElementById('step-pct').textContent   = stepPcts[n-1] + '%';
+  document.getElementById('form-progress-bar').style.width = stepPcts[n-1] + '%';
+  document.getElementById('btn-back').style.display   = n > 1 ? 'block' : 'none';
+  document.getElementById('btn-next').style.display   = n < totalSteps ? 'block' : 'none';
+  document.getElementById('btn-submit').style.display = n === totalSteps ? 'block' : 'none';
+  updateDots(n);
+  document.getElementById('form-card').scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+document.getElementById('btn-next').addEventListener('click', () => {
+  clearErrors(currentStep);
+  if (validateStep(currentStep) && currentStep < totalSteps) {
+    currentStep++;
+    showStep(currentStep);
+  }
+});
+
+document.getElementById('btn-back').addEventListener('click', () => {
+  if (currentStep > 1) {
+    clearErrors(currentStep);
+    currentStep--;
+    showStep(currentStep);
+  }
+});
+
+// Collect form data
+function collectFormData() {
+  const radio = name => document.querySelector(`input[name="${name}"]:checked`)?.value || null;
+  return {
+    name:             document.getElementById('f-name').value.trim(),
+    age:              document.getElementById('f-age').value,
+    gender:           document.getElementById('f-gender').value,
+    city:             document.getElementById('f-city').value,
+    marital_status:   radio('marital'),
+    industry:         document.getElementById('f-industry').value,
+    role:             document.getElementById('f-role').value,
+    seniority:        radio('seniority'),
+    employment_type:  radio('emptype'),
+    salary_bracket:   document.getElementById('f-salary').value,
+    premium_pct:      parseFloat(document.getElementById('prem-slider').value),
+    coverage_months:  radio('coverage_months') ? parseInt(radio('coverage_months')) : null,
+    worry_level:      radio('worry_level'),
+    savings_months:   radio('savings_months'),
+    awareness:        radio('awareness'),
+    subscribe_intent: radio('subscribe_intent'),
+    feedback:         document.getElementById('f-feedback').value.trim() || null,
+    email:            document.getElementById('f-email').value.trim(),
+    phone:            document.getElementById('f-phone').value.trim() || null,
+    founding_member:  document.getElementById('f-founding').checked,
+    submitted_at:     new Date().toISOString(),
+  };
+}
+
+// Submit handler
+document.getElementById('survey-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearErrors(5);
+  if (!validateStep(5)) return;
+
+  const btn = document.getElementById('btn-submit');
+  btn.textContent = 'Submitting…';
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+
+  try {
+    const payload = collectFormData();
+    const { error } = await supabaseClient.from('survey_responses').insert([payload]);
+    if (error) throw error;
+
+    // Success state
+    document.querySelectorAll('.form-step').forEach(el => el.classList.remove('active'));
+    document.getElementById('step-success').classList.add('active');
+    document.getElementById('form-nav').style.display = 'none';
+    document.getElementById('form-progress-bar').style.width = '100%';
+    document.getElementById('step-label').textContent = 'Complete';
+    document.getElementById('step-pct').textContent   = '100%';
+    updateDots(6); // all done
+
+  } catch (err) {
+    console.error('Submission error:', err);
+    btn.textContent = 'Submit Response →';
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    const banner = document.getElementById('step-error-banner');
+    banner.textContent = 'Something went wrong. Please try again in a moment.';
+    banner.classList.remove('hidden');
+  }
+});
+</script>
+<!-- COMPANY RISK CHECK -->
+<script>
+(() => {
+  // Where the risk API lives. Locally the backend runs on port 8000; ?api=<url> overrides.
+  const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const API = new URLSearchParams(location.search).get('api')
+    || (LOCAL ? 'http://127.0.0.1:8000' : 'https://company-risk-data-pipeline.onrender.com');
+
+  const BANDS = {
+    Low:      { line: '#4A9B7F', text: '#6BB89A', steps: 1, range: '0–25' },
+    Moderate: { line: '#C9A84C', text: '#E8C76A', steps: 2, range: '26–50' },
+    Elevated: { line: '#F07050', text: '#F07050', steps: 3, range: '51–75' },
+    High:     { line: '#E05533', text: '#F07050', steps: 4, range: '76–100' },
+  };
+  const LOADING_STEPS = [
+    ['Checking share price', 'NSE · last 6 months'],
+    ['Reading latest news', 'Last 30 days · checked for relevance'],
+    ['Checking company registry', 'MCA · status and filings'],
+    ['Building the scorecard', 'Four areas, weighted'],
+  ];
+
+  const panel = document.getElementById('rc-panel');
+  const list = document.getElementById('rc-list');
+  const form = document.getElementById('rc-search');
+  const input = document.getElementById('rc-q');
+  let current = null;      // summary shown in the panel
+  let ticket = 0;          // ignore answers to requests the user has moved on from
+  let loadingTimer = null;
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  async function api(path, options) {
+    const response = await fetch(API + path, options);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw Object.assign(new Error(body.detail || 'Request failed'), { status: response.status });
+    return body;
+  }
+
+  function bandChip(band) {
+    const b = BANDS[band];
+    if (!b) return '<span class="rc-chip" style="border-color:rgba(242,237,228,0.35);color:rgba(242,237,228,0.65)">No score</span>';
+    const bars = [4, 6, 8, 10].map((h, i) => `<span style="height:${h}px;background:${i < b.steps ? b.line : '#32323E'}"></span>`).join('');
+    return `<span class="rc-chip" style="border-color:${b.line};color:${b.text}"><span class="rc-steps">${bars}</span>${esc(band)}</span>`;
+  }
+
+  function confidenceChip(label, cells) {
+    const boxes = [0, 1, 2].map((i) => `<i class="${i < cells ? 'on' : ''}"></i>`).join('');
+    return `<span class="rc-conf"><span style="display:flex;gap:2px">${boxes}</span>${esc(label)}</span>`;
+  }
+
+  function scale(s) {
+    const score = s.score, avg = s.sector_average;
+    const b = BANDS[s.band];
+    const avgLeft = avg != null && avg < score;
+    const scoreLeft = (avg != null && score < avg) || score > 85;
+    const labels = [
+      `<span style="position:absolute;left:${score}%;bottom:3px;${scoreLeft ? 'transform:translateX(-100%);padding-right:7px' : 'padding-left:7px'};font-size:11px;font-weight:600;white-space:nowrap">${esc(s.name)} ${score}</span>`,
+      avg != null ? `<span class="hidden sm:inline" style="position:absolute;left:${avg}%;bottom:3px;${avgLeft ? 'transform:translateX(-100%);padding-right:7px' : 'padding-left:7px'};font-size:11px;color:rgba(242,237,228,0.5);white-space:nowrap">Sector avg ${Math.round(avg)}</span>` : '',
+    ].join('');
+    const blocks = Object.entries(BANDS).map(([name, x], i) =>
+      `<div style="flex:1;height:${[9, 15, 20, 26][i]}px;background:${x.line};opacity:${name === s.band ? 1 : 0.35}"></div>`).join('');
+    const legend = Object.entries(BANDS).map(([name, x]) =>
+      `<span style="flex:1">${name === s.band ? `<b style="color:${x.text}">${name}</b>` : name} ${x.range}</span>`).join('');
+    return `
+      <div style="margin-top:16px">
+        <div style="position:relative;height:18px">${labels}</div>
+        <div style="position:relative;display:flex;align-items:flex-end;gap:3px;height:26px">
+          ${blocks}
+          ${avg != null ? `<div style="position:absolute;left:${avg}%;top:-18px;bottom:0;border-left:1px dashed rgba(242,237,228,0.5)"></div>` : ''}
+          <div style="position:absolute;left:${score}%;top:-18px;bottom:-4px;width:2px;margin-left:-1px;background:#F2EDE4"></div>
+        </div>
+        <div style="display:flex;gap:3px;margin-top:7px;font-size:11px;color:rgba(242,237,228,0.5)">${legend}</div>
+        ${avg != null ? `<p class="sm:hidden" style="margin:8px 0 0;font-size:11px;color:rgba(242,237,228,0.5)">┆ Dashed line: sector average ${Math.round(avg)}</p>` : ''}
+      </div>`;
+  }
+
+  function header(s) {
+    return `
+      <div class="flex justify-between items-center gap-3">
+        <p class="rc-kicker">Scorecard · indicative</p>
+        ${s.data_as_of ? `<span class="font-display italic text-[15px]" style="color:#E8C76A">Data as of ${esc(s.data_as_of)}</span>` : ''}
+      </div>
+      <p class="font-display text-4xl md:text-[44px] font-bold leading-none mt-4">${esc(s.name)}</p>
+      <p class="font-body text-[13px] text-cream/55 mt-2">${esc(s.subtitle)}</p>`;
+  }
+
+  function footer(s) {
+    const sources = s.sources.map((x) => x.label.split(' (')[0]).join(' · ');
+    return `
+      <div class="mt-6 flex flex-wrap justify-between items-center gap-3">
+        <span class="font-body text-xs text-cream/45">${sources ? 'Sources: ' + esc(sources) : ''}</span>
+        <button type="button" class="rc-link" data-action="email">Email me the full report →</button>
+      </div>`;
+  }
+
+  function showSummary(s) {
+    current = s;
+    const b = BANDS[s.band];
+    const scoreBlock = s.scored ? `
+      <div class="rc-rule mt-5 pt-4 flex flex-wrap items-end gap-x-5 gap-y-3">
+        <div class="flex items-baseline"><span class="font-display font-bold leading-[0.9] tracking-[-0.03em] text-[80px] md:text-[96px]">${s.score}</span><span class="text-[15px] text-cream/45 ml-1.5">/ 100</span></div>
+        <div class="pb-2">
+          <p class="font-display italic font-medium text-[34px] leading-none" style="color:${b.text}">${esc(s.band)}</p>
+          <p class="text-xs text-cream/55 mt-1.5">Band ${b.steps} of 4 · ${esc(s.band)} is ${b.range}</p>
+        </div>
+        <div class="ml-auto mb-2.5">${confidenceChip(s.confidence, s.confidence_cells)}</div>
+      </div>
+      ${scale(s)}` : `
+      <div class="rc-rule mt-5 pt-4 flex flex-wrap items-end gap-x-5 gap-y-3">
+        <div class="flex items-baseline"><span class="font-display font-bold leading-[0.9] text-[80px] md:text-[96px] text-cream/30">—</span><span class="text-[15px] text-cream/45 ml-1.5">/ 100</span></div>
+        <div class="pb-2 max-w-[260px]">
+          <p class="font-display italic font-medium text-2xl leading-tight">Not enough data yet to give a score</p>
+          <p class="text-xs text-cream/55 mt-1.5">${s.coverage_pct}% of inputs available</p>
+        </div>
+      </div>`;
+    panel.innerHTML = `<div class="rc-fade">${header(s)}${scoreBlock}
+      <p class="font-body text-sm leading-relaxed text-cream/75 mt-5">${esc(s.plain_words)}</p>
+      ${footer(s)}</div>`;
+    markActive(s.id);
+  }
+
+  function showLoading(name) {
+    let step = 0;
+    const draw = () => {
+      panel.innerHTML = `<div class="rc-fade">
+        <p class="rc-kicker">First check · fetching fresh data</p>
+        <p class="font-display text-3xl md:text-4xl font-bold mt-4">Checking ${esc(name)}</p>
+        <p class="font-body text-sm text-cream/55 mt-3 mb-5 leading-relaxed">We're reading the public record now. This can take up to 30 seconds — after that it's instant.</p>
+        ${LOADING_STEPS.map(([label, detail], i) => `
+          <div class="rc-loading-step">
+            <span class="rc-dot ${i < step ? 'done' : i === step ? 'now' : ''}">${i < step ? '✓' : ''}</span>
+            <div><p class="font-body text-sm ${i <= step ? 'text-cream' : 'text-cream/40'}">${label}</p><p class="font-body text-xs text-cream/40">${detail}</p></div>
+          </div>`).join('')}
+        <p class="font-body text-xs text-cream/45 mt-5">While you wait: we're building salary insurance for when a job ends anyway. <a href="#survey" style="color:#E8C76A">Take the survey →</a></p>
+      </div>`;
+    };
+    draw();
+    clearInterval(loadingTimer);
+    loadingTimer = setInterval(() => { if (step < LOADING_STEPS.length - 1) { step += 1; draw(); } }, 6000);
+  }
+
+  function showMessage(title, text, extra = '') {
+    panel.innerHTML = `<div class="rc-fade">
+      <p class="rc-kicker">Company risk check</p>
+      <p class="font-display text-3xl font-medium mt-4 leading-tight">${title}</p>
+      <p class="font-body text-sm text-cream/60 mt-3 leading-relaxed">${text}</p>${extra}</div>`;
+    markActive(null);
+  }
+
+  function showSuggestions(query, suggestions) {
+    const rows = suggestions.map((c) => `
+      <button type="button" class="rc-row" data-id="${c.id}" data-name="${esc(c.name)}" style="grid-template-columns:minmax(0,1fr) 44px auto">
+        <div><p class="font-display text-lg">${esc(c.name)}</p><p class="text-xs text-cream/45">${esc(c.sector || '')}</p></div>
+        <span class="font-display text-2xl font-bold">${c.score ?? '—'}</span>
+        <span class="rc-link">View →</span>
+      </button>`).join('');
+    showMessage(`We couldn't find “${esc(query)}”`, 'It may be spelled differently. Did you mean one of these?', `<div class="mt-4">${rows}</div>`);
+  }
+
+  function showEmailForm() {
+    const s = current;
+    panel.innerHTML = `<div class="rc-fade">
+      <p class="rc-kicker">Full report · ${esc(s.name)}</p>
+      <p class="font-display text-3xl font-medium mt-4 leading-tight">Get the complete scorecard in your inbox</p>
+      <p class="font-body text-sm text-cream/55 mt-3 mb-6 leading-relaxed">Two pages: what moved the score, the latest news, share price and registry details, and every source we used.</p>
+      <form id="rc-email" novalidate class="space-y-4">
+        <div class="field-group"><label class="field-label" for="rc-name">Your name</label><input id="rc-name" class="field-input" name="name" maxlength="120" autocomplete="name" required /></div>
+        <div class="field-group"><label class="field-label" for="rc-mail">Email</label><input id="rc-mail" class="field-input" name="email" type="email" maxlength="254" autocomplete="email" required /></div>
+        <div class="rc-hp" aria-hidden="true"><input name="website" tabindex="-1" autocomplete="off" /></div>
+        <label class="rc-check"><input type="checkbox" name="consent" /> <span>Email me this report. Salary Shield may contact me about the product. No spam, and you can ask us to delete your details anytime.</span></label>
+        <p id="rc-email-error" class="error-msg"></p>
+        <div class="flex flex-wrap items-center gap-4 pt-1">
+          <button type="submit" class="btn-gold rounded-full px-7 py-3.5 font-body text-sm font-semibold text-ink-900 tracking-wide">Email me the report →</button>
+          <button type="button" class="rc-link" data-action="back" style="color:rgba(242,237,228,0.55)">← Back to score</button>
+        </div>
+      </form></div>`;
+    panel.querySelector('#rc-name').focus({ preventScroll: true });
+  }
+
+  async function submitEmail(formEl) {
+    const data = Object.fromEntries(new FormData(formEl));
+    const error = formEl.querySelector('#rc-email-error');
+    const fail = (text) => { error.textContent = text; error.classList.add('visible'); };
+    if (!data.name.trim()) return fail('Please enter your name.');
+    if (!/^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/.test(data.email.trim())) return fail('Please enter a valid email address.');
+    if (!data.consent) return fail('Please tick the box so we can email you the report.');
+    const button = formEl.querySelector('button[type=submit]');
+    button.disabled = true; button.textContent = 'Sending…';
+    try {
+      const result = await api('/public/report-requests', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ company_id: current.id, name: data.name.trim(), email: data.email.trim(), consent: true, website: data.website || '' }),
+      });
+      showMessage('Check your inbox',
+        `We're sending the full ${esc(current.name)} scorecard to <b class="text-cream">${esc(result.email || data.email)}</b>. It usually arrives within a couple of minutes.`,
+        `<div class="mt-6 flex flex-wrap gap-4 items-center"><a href="#survey" class="btn-gold rounded-full px-7 py-3.5 font-body text-sm font-semibold text-ink-900 tracking-wide">Take the 3-minute survey →</a>
+         <button type="button" class="rc-link" data-action="back">← Back to score</button></div>`);
+    } catch (err) {
+      button.disabled = false; button.textContent = 'Email me the report →';
+      fail(err.status === 429 || err.status === 422 ? err.message : 'Something went wrong. Please try again in a moment.');
+    }
+  }
+
+  async function openCompany(id, name, refresh = true) {
+    const mine = ++ticket;
+    clearInterval(loadingTimer);
+    // Fresh data comes back in about a second; only show the loading steps if it takes longer.
+    const slow = refresh ? setTimeout(() => mine === ticket && showLoading(name), 600) : null;
+    try {
+      const summary = await api(`/public/companies/${id}/summary?refresh=${refresh}`);
+      if (mine === ticket) showSummary(summary);
+    } catch (err) {
+      if (mine === ticket) showMessage('Live check is not available right now', 'Please try again in a moment. The scores in the list below are still up to date.');
+    } finally {
+      clearTimeout(slow);
+      if (mine === ticket) clearInterval(loadingTimer);
+    }
+  }
+
+  async function search(query) {
+    const mine = ++ticket;
+    try {
+      const result = await api(`/public/companies/search?q=${encodeURIComponent(query)}`);
+      if (mine !== ticket) return;
+      if (result.match) return openCompany(result.match.id, result.match.name);
+      if (result.suggestions.length) return showSuggestions(query, result.suggestions);
+      showMessage(`We don't cover “${esc(query)}” yet`,
+        "We're starting with India's largest employers and well-known startups, and adding more every month. Try the brand name or the registered name — short names work best.",
+        `<p class="font-body text-sm mt-5"><a href="mailto:hello.salaryshield@gmail.com?subject=${encodeURIComponent('Please add ' + query)}" style="color:#E8C76A">Ask us to add it →</a></p>`);
+    } catch (err) {
+      if (mine === ticket) showMessage('Live check is not available right now', 'Please try again in a moment.');
+    }
+  }
+
+  function markActive(id) {
+    list.querySelectorAll('.rc-row').forEach((row) => row.classList.toggle('active', Number(row.dataset.id) === id));
+  }
+
+  function renderList(companies) {
+    list.innerHTML = companies.map((c) => {
+      const b = BANDS[c.band] || BANDS.Low;
+      return `
+        <button type="button" class="rc-row" data-id="${c.id}" data-name="${esc(c.name)}">
+          <div><p class="font-display text-[19px] font-medium">${esc(c.name)}</p><p class="text-xs text-cream/45 mt-0.5">${esc(c.sector || '')}</p></div>
+          <span class="font-display text-[28px] font-bold">${c.score}</span>
+          <div class="rc-bar"><b style="width:${c.score}%;background:${b.line}"></b><i style="left:25%"></i><i style="left:50%"></i><i style="left:75%"></i></div>
+          <span style="justify-self:start">${bandChip(c.band)}</span>
+          <span class="rc-row-conf"><span class="rc-chip" style="border:1px dashed rgba(201,168,76,0.6);color:rgba(242,237,228,0.65);font-weight:400">${esc(c.confidence)}</span></span>
+          <span class="rc-row-go rc-link" style="text-align:right">View scorecard →</span>
+        </button>`;
+    }).join('');
+  }
+
+  // Clicks inside the panel and list: open a company, show the email form, go back.
+  document.getElementById('company-check').addEventListener('click', (event) => {
+    const row = event.target.closest('.rc-row');
+    const action = event.target.closest('[data-action]')?.dataset.action;
+    if (row) {
+      openCompany(Number(row.dataset.id), row.dataset.name);
+      if (window.innerWidth < 1024) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (action === 'email' && current) {
+      showEmailForm();
+    } else if (action === 'back' && current) {
+      showSummary(current);
+    }
+  });
+  panel.addEventListener('submit', (event) => {
+    if (event.target.id === 'rc-email') { event.preventDefault(); submitEmail(event.target); }
+  });
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const query = input.value.trim();
+    if (query) search(query);
+  });
+
+  (async () => {
+    try {
+      const companies = await api('/public/companies/featured?limit=5');
+      renderList(companies);
+      if (companies.length) openCompany(companies[0].id, companies[0].name, false);
+      else showMessage('Search for your company', 'Type your company\'s name above to see its indicative risk score.');
+    } catch (err) {
+      showMessage('Live check is not available right now', 'Please try again in a moment.');
+    }
+  })();
+})();
+</script>
+</body>
+</html>

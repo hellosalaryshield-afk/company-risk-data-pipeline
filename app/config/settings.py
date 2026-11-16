@@ -14,6 +14,16 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.5-flash-lite"
     logfire_token: str | None = None
+    # Website origins allowed to call the public API, comma separated.
+    cors_origins: str = "https://salary-shield.netlify.app,http://localhost:5500,http://127.0.0.1:5500"
+    # Outgoing mail for emailed reports. Any SMTP server works (Gmail app password, Brevo).
+    # Without smtp_host the email is written to reports/outbox instead of being sent.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    report_from_email: str | None = None
+    report_reply_to: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
