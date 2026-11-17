@@ -60,7 +60,8 @@ def render_scorecard_pdf(html: str, timeout_ms: int = 30000) -> bytes:
 
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            # Small containers (Render's free plan: 512 MB) have a tiny /dev/shm and no GPU.
+            browser = playwright.chromium.launch(args=["--disable-dev-shm-usage", "--disable-gpu", "--no-zygote"])
             try:
                 page = browser.new_page()
                 page.set_content(html, wait_until="networkidle", timeout=timeout_ms)

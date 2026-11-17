@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models.news_feed import NewsFeedItem
@@ -27,6 +27,23 @@ def collect_news_feeds(db: Session, feeds: tuple[Feed, ...] = FEEDS, fetch=fetch
         "new_items": sum(f.get("new", 0) for f in per_feed.values()),
         "failed_feeds": sum(1 for f in per_feed.values() if f["status"] == "failed"),
     }
+
+
+FEEDS_MAX_AGE = timedelta(hours=1)
+
+
+def collect_news_feeds_if_stale(db: Session, now: datetime | None = None, fetch=fetch_feed) -> dict | None:
+    """Fetch the feeds only if nothing was stored in the last hour.
+
+    Where no scheduler runs the collector (Render's free plan has no cron jobs), the
+    news check calls this first, so feed articles still pile up as people use the site.
+    Returns None when the stored feeds were recent enough.
+    """
+    now = now or datetime.now(UTC)
+    last = db.scalar(select(func.max(NewsFeedItem.fetched_at)))
+    if last is not None and (last if last.tzinfo else last.replace(tzinfo=UTC)) > now - FEEDS_MAX_AGE:
+        return None
+    return collect_news_feeds(db, fetch=fetch)
 
 
 def store_new(db: Session, items: list[FeedItem]) -> int:

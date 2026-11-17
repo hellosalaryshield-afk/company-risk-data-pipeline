@@ -23,6 +23,7 @@ from app.config.settings import Settings
 from app.models.collection import CollectionRun
 from app.models.company import Company
 from app.pipeline.company_collection import SUCCESS_STATUSES, run_source
+from app.pipeline.news_feed_collection import collect_news_feeds_if_stale
 from app.pipeline.source_selection import (
     MARKET_SOURCE,
     MCA_SOURCE,
@@ -116,6 +117,8 @@ def refresh_company(
         elif failed_recently(db, company.id, source_name, now):
             row["action"] = f"not fetched: failed in the last {FAILED_RETRY_MINUTES} minutes"
         else:
+            if source_name == NEWS_SIGNALS_SOURCE:
+                collect_news_feeds_if_stale(db)  # news is found in the stored feeds first
             result = run_source(
                 db=db,
                 source_name=source_name,

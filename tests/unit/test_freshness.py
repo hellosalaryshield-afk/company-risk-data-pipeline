@@ -29,6 +29,7 @@ def fetched(monkeypatch):
         return {"source": source_name, "status": "completed"}
 
     monkeypatch.setattr(freshness, "run_source", fake_run_source)
+    monkeypatch.setattr(freshness, "collect_news_feeds_if_stale", lambda db: calls.append("rss feeds"))
     return calls
 
 
@@ -60,7 +61,7 @@ def test_only_stale_or_missing_sources_are_fetched(db_session, listed, fetched):
 
     rows = {r["source"]: r for r in refresh_company(db_session.session, listed, Settings(), now=NOW)}
 
-    assert fetched == [NEWS_SIGNALS_SOURCE]
+    assert fetched == ["rss feeds", NEWS_SIGNALS_SOURCE]  # feeds are topped up before the news check
     assert rows[MARKET_SOURCE]["action"] == "used stored data"
     assert rows[MCA_SOURCE]["action"] == "used stored data"
     assert rows[NEWS_SIGNALS_SOURCE]["state"] == STALE and rows[NEWS_SIGNALS_SOURCE]["action"] == "fetched"
@@ -94,3 +95,24 @@ def test_market_data_is_not_fetched_for_an_unlisted_company(db_session, fetched)
     sources = [r["source"] for r in refresh_company(db_session.session, startup, Settings(), now=NOW)]
 
     assert MARKET_SOURCE not in sources and MARKET_SOURCE not in fetched
+
+
+def test_feeds_are_fetched_only_when_nothing_was_stored_in_the_last_hour(db_session):
+    from app.models.news_feed import NewsFeedItem
+    from app.pipeline.news_feed_collection import collect_news_feeds_if_stale
+
+    fetched = []
+
+    def fake_fetch(feed):
+        fetched.append(feed.name)
+        return []
+
+    assert collect_news_feeds_if_stale(db_session.session, now=NOW, fetch=fake_fetch) is not None  # nothing stored yet
+    assert fetched
+
+    fetched.clear()
+    db_session.session.add(NewsFeedItem(url="https://x.example/1", title="t", publisher="p", feed="f",
+                                        fetched_at=NOW - timedelta(minutes=20)))
+    db_session.session.flush()
+    assert collect_news_feeds_if_stale(db_session.session, now=NOW, fetch=fake_fetch) is None
+    assert fetched == []
