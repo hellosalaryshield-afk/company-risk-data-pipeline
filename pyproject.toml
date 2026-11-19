@@ -26,7 +26,7 @@ observability = [
     "logfire[fastapi,httpx,sqlalchemy]>=5.4.0",
 ]
 scorecard = [
-    "playwright>=1.65.0",
+    "playwright==1.65.0",  # must match the Docker image tag, which ships the matching Chromium
 ]
 
 [tool.pytest.ini_options]
