@@ -34,6 +34,7 @@ def no_real_email(monkeypatch):
 
     monkeypatch.setattr(smtplib, "SMTP", refuse)
     monkeypatch.setattr(smtplib, "SMTP_SSL", refuse)
+    monkeypatch.setenv("MAIL_RELAY_URL", "")  # environment beats .env, so no test reaches the relay
 
 
 @pytest.fixture(autouse=True)

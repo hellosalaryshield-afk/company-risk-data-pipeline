@@ -182,3 +182,42 @@ def test_send_report_marks_failures(db_session, companies, monkeypatch):
     public.send_report(db_session.session, request.id)
 
     assert request.status == "failed" and request.error == "Chromium missing"
+
+
+def test_the_mail_relay_gets_the_message_and_the_pdf(monkeypatch):
+    import base64
+
+    sent = {}
+
+    class Reply:
+        def json(self):
+            return {"ok": True}
+
+    def fake_post(url, json, **kwargs):
+        sent.update(url=url, **json)
+        return Reply()
+
+    monkeypatch.setattr(emailer.httpx, "post", fake_post)
+    settings = Settings(mail_relay_url="https://relay.example/exec", mail_relay_key="k", smtp_host=None,
+                        report_from_email="hello@salaryshield.in", report_reply_to="hello@salaryshield.in")
+    message = emailer.scorecard_email("Asha Rao", "asha@example.com", "Swiggy", b"%PDF-1.7 fake", settings)
+
+    assert emailer.deliver(message, settings) == "sent"
+    assert sent["url"] == "https://relay.example/exec" and sent["key"] == "k"
+    assert sent["to"] == "asha@example.com" and sent["subject"] == "Your Salary Shield report for Swiggy is ready"
+    assert "Hi Asha," in sent["text"] and "<ol>" in sent["html"] and sent["reply_to"] == "hello@salaryshield.in"
+    assert sent["attachment"]["name"] == "swiggy_scorecard.pdf"
+    assert base64.b64decode(sent["attachment"]["base64"]) == b"%PDF-1.7 fake"
+
+
+def test_a_relay_refusal_is_reported(monkeypatch):
+    class Reply:
+        def json(self):
+            return {"ok": False, "error": "bad key"}
+
+    monkeypatch.setattr(emailer.httpx, "post", lambda *a, **k: Reply())
+    settings = Settings(mail_relay_url="https://relay.example/exec", mail_relay_key="wrong")
+    message = emailer.scorecard_email("Asha", "asha@example.com", "Swiggy", b"%PDF", settings)
+
+    with pytest.raises(emailer.EmailNotSent, match="bad key"):
+        emailer.deliver(message, settings)

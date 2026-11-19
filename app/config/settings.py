@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     report_from_email: str | None = None
     report_reply_to: str | None = None
+    # Google Apps Script web app that sends mail over HTTPS (scripts/gmail_relay.gs).
+    # Used instead of SMTP when set, since Render's free plan blocks SMTP ports.
+    mail_relay_url: str | None = None
+    mail_relay_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

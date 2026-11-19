@@ -1,18 +1,23 @@
 """Email a company scorecard PDF to someone who asked for it on the website.
 
-Any SMTP server works, so it can run free: a Gmail app password (about 500 mails a day)
-or Brevo's free plan (300 a day). Without `smtp_host`, the message is written to
-reports/outbox as an .eml file, which any mail app opens, so the flow can be tried locally.
+Three ways out, tried in this order:
+- the Apps Script mail relay (`mail_relay_url`), which sends from Gmail over HTTPS and is
+  what runs on Render, whose free plan blocks SMTP ports;
+- any SMTP server (`smtp_host`), e.g. a Gmail app password, which works locally;
+- neither: the message is written to reports/outbox as an .eml file.
 
 The wording and look follow the template the team approved.
 Each message carries a plain-text and an HTML version; mail apps show the HTML one.
 """
 
+import base64
 import smtplib
 from email.message import EmailMessage
-from email.utils import formataddr, make_msgid
+from email.utils import formataddr, make_msgid, parseaddr
 from html import escape
 from pathlib import Path
+
+import httpx
 
 from app.config.settings import Settings
 
@@ -95,11 +100,52 @@ def scorecard_email(to_name: str, to_email: str, company_name: str, pdf: bytes, 
     return message
 
 
-def deliver(message: EmailMessage, settings: Settings) -> str:
-    """Send the message, or save it to the outbox when no mail server is configured.
+def relay_payload(message: EmailMessage, settings: Settings) -> dict:
+    """Turn the message into the JSON the Apps Script relay expects."""
+    text = message.get_body(("plain",))
+    html = message.get_body(("html",))
+    payload = {
+        "key": settings.mail_relay_key,
+        "to": parseaddr(message["To"])[1],
+        "subject": message["Subject"],
+        "text": text.get_content() if text else "",
+        "html": html.get_content() if html else "",
+        "reply_to": message["Reply-To"] or "",
+        "sender_name": SENDER_NAME,
+    }
+    attachment = next(message.iter_attachments(), None)
+    if attachment is not None:
+        payload["attachment"] = {
+            "name": attachment.get_filename(),
+            "mime_type": attachment.get_content_type(),
+            "base64": base64.b64encode(attachment.get_payload(decode=True)).decode("ascii"),
+        }
+    return payload
 
-    Returns "sent" or "saved"; raises EmailNotSent if the server refuses it.
+
+def send_via_relay(message: EmailMessage, settings: Settings) -> None:
+    try:
+        # Apps Script answers a POST with a redirect to the result; httpx follows it with a GET.
+        response = httpx.post(
+            settings.mail_relay_url, json=relay_payload(message, settings), follow_redirects=True, timeout=60
+        )
+        result = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise EmailNotSent(f"Mail relay unreachable: {exc.__class__.__name__}: {exc}") from exc
+    if not result.get("ok"):
+        raise EmailNotSent(f"Mail relay refused the message: {result.get('error', 'unknown error')}")
+
+
+def deliver(message: EmailMessage, settings: Settings) -> str:
+    """Send the message through the mail relay or SMTP, or save it to the outbox.
+
+    The relay wins when configured; without a relay or `smtp_host` the message is saved
+    as an .eml file. Returns "sent" or "saved"; raises EmailNotSent on failure.
     """
+    if settings.mail_relay_url:
+        send_via_relay(message, settings)
+        return "sent"
+
     if not settings.smtp_host:
         OUTBOX.mkdir(parents=True, exist_ok=True)
         name = message["Message-ID"].strip("<>").split("@")[0] + ".eml"
