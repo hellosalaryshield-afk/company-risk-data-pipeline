@@ -163,7 +163,7 @@ def send_report(db: Session, request_id: int) -> None:
             raise ValueError("The company no longer exists.")
         view = build_scorecard(db, company)
         pdf = render_scorecard_pdf(render_scorecard_html(view, "night"))
-        message = scorecard_email(request.name, request.email, company.canonical_name, view["plain_words"], pdf, settings)
+        message = scorecard_email(request.name, request.email, company.canonical_name, pdf, settings)
         request.status = deliver(message, settings)
         request.sent_at = datetime.now(UTC)
         request.error = None

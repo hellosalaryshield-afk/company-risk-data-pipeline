@@ -3,45 +3,93 @@
 Any SMTP server works, so it can run free: a Gmail app password (about 500 mails a day)
 or Brevo's free plan (300 a day). Without `smtp_host`, the message is written to
 reports/outbox as an .eml file, which any mail app opens, so the flow can be tried locally.
+
+The wording and look follow the template the team approved.
+Each message carries a plain-text and an HTML version; mail apps show the HTML one.
 """
 
 import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
+from html import escape
 from pathlib import Path
 
 from app.config.settings import Settings
 
 OUTBOX = Path("reports/outbox")
 SENDER_NAME = "Salary Shield"
+SURVEY_URL = "https://salary-shield.netlify.app/#survey"
+LINKEDIN_URL = "https://www.linkedin.com/company/salary-shield/"
+PHONE = "+91 9002473734"
+
+POINTS = (
+    "The score estimates how likely layoffs are over the next 3 to 6 months. It's a statistical "
+    "estimate, not a prediction, and it says nothing about any individual role.",
+    "Where data is thin, for example at unlisted companies, the report says so in its confidence rating.",
+    "Use it alongside salary, role and team, not instead of them.",
+)
 
 
 class EmailNotSent(RuntimeError):
     pass
 
 
-def scorecard_email(
-    to_name: str, to_email: str, company_name: str, summary: str, pdf: bytes, settings: Settings
-) -> EmailMessage:
+def plain_body(first_name: str, company_name: str) -> str:
+    points = "\n".join(f"  {n}. {point}" for n, point in enumerate(POINTS, 1))
+    return (
+        f"Hi {first_name},\n\n"
+        f"Your Layoff Risk Report for {company_name} is attached.\n\n"
+        "A few things worth knowing:\n\n"
+        f"{points}\n\n"
+        "If something looks off, or you'd like to have a conversation, just reply to this email. "
+        "We read every reply.\n\n"
+        "We are building Salary Shield, a digital employee-protection platform tailored for India's "
+        "white-collar salaried workforce. If you haven't yet, you can help shape it with our "
+        f"3-minute survey: {SURVEY_URL}\n\n"
+        "-- \n"
+        "Team Salary Shield\n"
+        "Building India's first Employee Protection platform\n"
+        f"Follow us: {LINKEDIN_URL}\n"
+        f"M | {PHONE}\n"
+    )
+
+
+def html_body(first_name: str, company_name: str) -> str:
+    font = 'style="font-family:verdana,sans-serif"'
+    points = "".join(f"<li>{escape(point)}</li>" for point in POINTS)
+    return (
+        f'<div {font}>'
+        f"<p>Hi {escape(first_name)},</p>"
+        f"<p>Your Layoff Risk Report for {escape(company_name)} is attached.</p>"
+        f"<p>A few things worth knowing:</p><ol>{points}</ol>"
+        "<p>If something looks off, or you&#39;d like to have a conversation, just reply to this email. "
+        "We read every reply.</p>"
+        "<p>We are building <b>Salary Shield</b>, a digital employee-protection platform tailored for "
+        "India&#8217;s white-collar salaried workforce. If you haven&#39;t yet, you can help shape it with "
+        f'our 3-minute survey: <a href="{SURVEY_URL}">{SURVEY_URL}</a></p>'
+        "</div>"
+        '<div style="font-family:monospace">'
+        "<div>-- </div>"
+        '<div><b style="color:#ff9900">Team Salary Shield</b></div>'
+        '<div style="font-size:x-small"><i>Building India&#39;s first Employee Protection platform</i></div>'
+        f'<div style="font-size:x-small"><i>Follow us: </i>'
+        f'<a href="{LINKEDIN_URL}" style="color:#3d85c6">{LINKEDIN_URL}</a></div>'
+        f'<div style="font-size:x-small">M | {PHONE}</div>'
+        "</div>"
+    )
+
+
+def scorecard_email(to_name: str, to_email: str, company_name: str, pdf: bytes, settings: Settings) -> EmailMessage:
     first_name = to_name.split()[0] if to_name.strip() else "there"
     message = EmailMessage()
-    message["Subject"] = f"{company_name}: your Salary Shield risk scorecard"
+    message["Subject"] = f"Your Salary Shield report for {company_name} is ready"
     message["From"] = formataddr((SENDER_NAME, settings.report_from_email or "reports@salaryshield.local"))
     message["To"] = formataddr((to_name, to_email))
     if settings.report_reply_to:
         message["Reply-To"] = settings.report_reply_to
     message["Message-ID"] = make_msgid(domain="salaryshield")
-    message.set_content(
-        f"Hi {first_name},\n\n"
-        f"Here is the full risk scorecard for {company_name}, attached as a PDF.\n\n"
-        f"{summary}\n\n"
-        "The score is indicative and built only from public data. It is not a prediction, "
-        "and no score can promise a job is safe.\n\n"
-        "We're building Salary Shield, India's first salary insurance: your full salary for up "
-        "to 6 months if you're laid off. If you haven't yet, you can help shape it with our "
-        "3-minute survey: https://salary-shield.netlify.app/#survey\n\n"
-        "Salary Shield\n"
-    )
+    message.set_content(plain_body(first_name, company_name))
+    message.add_alternative(html_body(first_name, company_name), subtype="html")
     filename = company_name.lower().replace(" ", "_") + "_scorecard.pdf"
     message.add_attachment(pdf, maintype="application", subtype="pdf", filename=filename)
     return message

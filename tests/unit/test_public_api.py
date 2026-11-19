@@ -148,7 +148,7 @@ def test_cors_lets_the_website_call_the_api(client):
 
 def test_send_report_emails_the_pdf_or_saves_it_to_the_outbox(db_session, companies, monkeypatch, tmp_path):
     monkeypatch.setattr(public, "render_scorecard_pdf", lambda html: b"%PDF-1.7 fake")
-    monkeypatch.setattr(public, "get_settings", lambda: Settings(report_from_email="hello@salaryshield.in"))
+    monkeypatch.setattr(public, "get_settings", lambda: Settings(report_from_email="hello@salaryshield.in", smtp_host=None))
     monkeypatch.setattr(emailer, "OUTBOX", tmp_path)
     request = ReportRequest(name="Asha Rao", email="asha@example.com", company_id=companies["swiggy"].id,
                             company_name="Swiggy", consent=True, status="pending")
@@ -160,7 +160,11 @@ def test_send_report_emails_the_pdf_or_saves_it_to_the_outbox(db_session, compan
     assert request.status == "saved" and request.sent_at is not None and request.attempts == 1
     message = message_from_bytes(next(tmp_path.glob("*.eml")).read_bytes())
     assert message["To"] == "Asha Rao <asha@example.com>"
-    assert message["Subject"] == "Swiggy: your Salary Shield risk scorecard"
+    assert message["Subject"] == "Your Salary Shield report for Swiggy is ready"
+    plain = next(part for part in message.walk() if part.get_content_type() == "text/plain")
+    html = next(part for part in message.walk() if part.get_content_type() == "text/html")
+    assert "Hi Asha," in plain.get_payload(decode=True).decode()
+    assert "Your Layoff Risk Report for Swiggy is attached." in html.get_payload(decode=True).decode()
     attachment = next(part for part in message.walk() if part.get_filename())
     assert attachment.get_filename() == "swiggy_scorecard.pdf" and attachment.get_payload(decode=True) == b"%PDF-1.7 fake"
 

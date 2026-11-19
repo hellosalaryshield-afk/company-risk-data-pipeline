@@ -25,6 +25,18 @@ class DatabaseSessionFixture:
 
 
 @pytest.fixture(autouse=True)
+def no_real_email(monkeypatch):
+    """Tests must never send mail. Settings read .env, which may hold a working SMTP login."""
+    import smtplib
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("A test tried to send a real email. Set smtp_host=None or stub deliver().")
+
+    monkeypatch.setattr(smtplib, "SMTP", refuse)
+    monkeypatch.setattr(smtplib, "SMTP_SSL", refuse)
+
+
+@pytest.fixture(autouse=True)
 def no_gdelt_throttle_or_network(monkeypatch):
     """Keep the GDELT throttle out of the test suite.
 
