@@ -1117,7 +1117,7 @@ document.getElementById('survey-form').addEventListener('submit', async (e) => {
   // Where the risk API lives. Locally the backend runs on port 8000; ?api=<url> overrides.
   const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
   const API = new URLSearchParams(location.search).get('api')
-    || (LOCAL ? 'http://127.0.0.1:8000' : 'https://company-risk-data-pipeline.onrender.com');
+    || (LOCAL ? 'http://127.0.0.1:8000' : 'https://salary-shield-api.onrender.com');
 
   const BANDS = {
     Low:      { line: '#4A9B7F', text: '#6BB89A', steps: 1, range: '0–25' },
