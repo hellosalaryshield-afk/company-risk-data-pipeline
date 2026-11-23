@@ -6,7 +6,13 @@ from app.config.settings import Settings
 from app.models.collection import CollectionRun
 from app.pipeline import freshness
 from app.pipeline.freshness import FRESH, MISSING, STALE, check_source, refresh_company
-from app.pipeline.source_selection import MARKET_SOURCE, MCA_SOURCE, NEWS_SIGNALS_SOURCE, WORKPLACE_SOURCE
+from app.pipeline.source_selection import (
+    FINANCIALS_SOURCE,
+    MARKET_SOURCE,
+    MCA_SOURCE,
+    NEWS_SIGNALS_SOURCE,
+    WORKPLACE_SOURCE,
+)
 
 NOW = datetime(2026, 11, 12, 12, tzinfo=UTC)
 
@@ -56,19 +62,21 @@ def test_a_failed_run_is_not_fresh_data(db_session, listed):
 
 def test_only_stale_or_missing_sources_are_fetched(db_session, listed, fetched):
     add_run(db_session, listed, MARKET_SOURCE, hours_ago=3)  # fresh
+    add_run(db_session, listed, FINANCIALS_SOURCE, hours_ago=24 * 40)  # results older than 30 days, stale
     add_run(db_session, listed, MCA_SOURCE, hours_ago=24 * 10)  # within 30 days, fresh
     add_run(db_session, listed, NEWS_SIGNALS_SOURCE, hours_ago=30)  # older than 1 day, stale
 
     rows = {r["source"]: r for r in refresh_company(db_session.session, listed, Settings(), now=NOW)}
 
-    assert fetched == ["rss feeds", NEWS_SIGNALS_SOURCE]  # feeds are topped up before the news check
+    assert fetched == [FINANCIALS_SOURCE, "rss feeds", NEWS_SIGNALS_SOURCE]  # feeds are topped up before the news check
+    assert rows[FINANCIALS_SOURCE]["state"] == STALE and rows[FINANCIALS_SOURCE]["action"] == "fetched"
     assert rows[MARKET_SOURCE]["action"] == "used stored data"
     assert rows[MCA_SOURCE]["action"] == "used stored data"
     assert rows[NEWS_SIGNALS_SOURCE]["state"] == STALE and rows[NEWS_SIGNALS_SOURCE]["action"] == "fetched"
 
 
 def test_paid_sources_are_fetched_only_when_asked(db_session, listed, fetched):
-    for source in (MARKET_SOURCE, MCA_SOURCE, NEWS_SIGNALS_SOURCE):
+    for source in (MARKET_SOURCE, FINANCIALS_SOURCE, MCA_SOURCE, NEWS_SIGNALS_SOURCE):
         add_run(db_session, listed, source, hours_ago=1)
 
     rows = {r["source"]: r for r in refresh_company(db_session.session, listed, Settings(), now=NOW)}

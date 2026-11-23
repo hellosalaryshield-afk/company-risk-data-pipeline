@@ -38,6 +38,15 @@ def no_real_email(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_live_financials(monkeypatch):
+    """The financial results source answers "no data" in tests instead of calling Yahoo.
+    Tests that need figures pass a `Financials` object to the collector directly."""
+    from app.sources.financials import Financials, YahooFundamentalsClient
+
+    monkeypatch.setattr(YahooFundamentalsClient, "fetch", lambda self, symbol, now=None: Financials(symbol, {}))
+
+
+@pytest.fixture(autouse=True)
 def no_gdelt_throttle_or_network(monkeypatch):
     """Keep the GDELT throttle out of the test suite.
 

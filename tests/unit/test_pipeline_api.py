@@ -43,6 +43,11 @@ def stub_sources(monkeypatch):
     )
     monkeypatch.setattr(
         company_collection,
+        "collect_financials_for_company",
+        lambda **kwargs: {"status": "completed", "record_found": True, "kpis": {"fin_debt_to_equity": 0.1}},
+    )
+    monkeypatch.setattr(
+        company_collection,
         "collect_gdelt_for_company",
         lambda **kwargs: {"status": "completed", "records_stored": 1, "kpis": {"gdelt_avg_tone": -1.5}},
     )

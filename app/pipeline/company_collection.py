@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.companies.repository import CompanyRepository
 from app.companies.resolver import CompanyResolver
 from app.config.settings import Settings
+from app.pipeline.financials_collection import collect_financials_for_company
 from app.pipeline.gdelt_collection import GdeltCollectionError, collect_gdelt_for_company
 from app.pipeline.market_collection import collect_market_for_company
 from app.pipeline.mca_collection import McaCollectionError, collect_mca_for_company
@@ -12,6 +13,7 @@ from app.pipeline.news_collection import NewsCollectionError, collect_news_for_c
 from app.pipeline.news_signal_collection import NewsSignalCollectionError, collect_news_signals_for_company
 from app.pipeline.source_selection import (
     ALL_SOURCES,
+    FINANCIALS_SOURCE,
     GDELT_SOURCE,
     MARKET_SOURCE,
     MCA_SOURCE,
@@ -186,6 +188,8 @@ def run_source(
             result = collect_mca_for_company(db=db, query=company_name, settings=settings)
         elif source_name == MARKET_SOURCE:
             result = collect_market_for_company(db=db, query=company_name, range_period=range_period)
+        elif source_name == FINANCIALS_SOURCE:
+            result = collect_financials_for_company(db=db, query=company_name)
         elif source_name == WORKPLACE_SOURCE:
             result = collect_workplace_for_company(db=db, query=company_name, settings=settings)
         elif source_name == GDELT_SOURCE:

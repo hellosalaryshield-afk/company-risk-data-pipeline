@@ -15,6 +15,7 @@ from app.models.collection import KpiObservation, SourceRecord
 from app.models.company import Company
 from app.models.registry import McaCompany
 from app.models.source import DataSource
+from app.pipeline.financials_collection import FINANCIALS_SOURCE_NAME
 from app.pipeline.news_signal_collection import CLASSIFIED_RECORD_TYPE, NEWS_SIGNAL_SOURCE_NAME
 from app.scoring.config import load_config
 from app.scoring.engine import band_for
@@ -60,6 +61,9 @@ PILLAR_LABELS = {"Financial": "Financial", "Sentiment": "Employee sentiment", "N
 DRIVER_TAGS = {"News": "News", "Financial": "Financial", "Profile": "Profile", "Sentiment": "Sentiment", "Adjustment": "Method"}
 
 FILINGS_UP_TO_DATE = "✓ Up to date"
+FINANCIAL_RESULT_KEYS = ("revenue_growth_yoy", "operating_margin", "cash_runway_months", "debt_to_equity")
+# Below this, the plain-words summary mentions how many months of cash are left.
+SHORT_RUNWAY_MONTHS = 24
 
 
 def fmt_date(value: date | datetime | None) -> str | None:
@@ -154,7 +158,10 @@ def pillar_row(name: str, pillar: dict, score: dict, config: dict, listed: bool)
         if value is None:
             note = "No financial data yet" if listed else "No share price (unlisted) and no funding data yet"
         elif listed:
-            note = f"Share price only · {coverage}% of its inputs" if coverage < 100 else "Financial results and share price"
+            has_results = any(key in score["inputs"] for key in FINANCIAL_RESULT_KEYS)
+            note = "Financial results and share price" if has_results else "Share price only"
+            if coverage < 100:
+                note += f" · {coverage}% of its inputs"
         else:
             note = f"Funding news only · {coverage}% of its inputs"
     elif name == "Sentiment":
@@ -289,6 +296,7 @@ def source_rows(db: Session, company: Company, market: dict, score: dict) -> lis
     mca = latest_record_time(db, company.id, MCA_SOURCE_NAME, "mca_company_master")
     price = market.get("market_price", {}).get("collected_at")
     news = latest_news_scan(db, company.id, datetime.now(UTC))
+    results = latest_record_time(db, company.id, FINANCIALS_SOURCE_NAME, "financial_results")
     glassdoor = None
     if "glassdoor_rating" in score["inputs"]:
         glassdoor = db.scalar(
@@ -303,6 +311,11 @@ def source_rows(db: Session, company: Company, market: dict, score: dict) -> lis
             "label": f"Share price ({company.exchange} via Yahoo Finance)" if is_listed(company) else "Share price",
             "date": fmt_date(ensure_utc(price)) if price else None,
             "missing": "Not listed",
+        },
+        {
+            "label": "Financial results (Yahoo Finance)",
+            "date": fmt_date(results) if results else None,
+            "missing": "Not available yet" if is_listed(company) else "Not listed",
         },
         {"label": "News scan (publisher RSS, AI-checked for relevance)", "date": fmt_date(news), "missing": "Not scanned yet"},
         {"label": "Employee reviews", "date": fmt_date(ensure_utc(glassdoor)) if glassdoor else None, "missing": "Not available yet"},
@@ -335,6 +348,8 @@ def plain_words(company: Company, view: dict, score: dict, events: list[dict], m
         sentences.append(f"{name}'s share price is up {change:.0f}% over six months.")
     elif change is not None:
         sentences.append(f"{name}'s share price has been fairly steady over six months.")
+    if listed:
+        sentences.extend(results_sentences(score["inputs"]))
 
     risk_types = []
     for event in events:
@@ -361,6 +376,23 @@ def plain_words(company: Company, view: dict, score: dict, events: list[dict], m
     elif view["confidence"] == "Medium":
         sentences.append("Some data is missing, so read the score with some caution.")
     return " ".join(sentences)
+
+
+def results_sentences(inputs: dict) -> list[str]:
+    """One or two plain sentences about the financial results, only when something stands out."""
+    out = []
+    growth = inputs.get("revenue_growth_yoy")
+    margin = inputs.get("operating_margin")
+    runway = inputs.get("cash_runway_months")
+    if growth is not None and growth <= -10:
+        out.append(f"Revenue is down {abs(growth):.0f}% on a year earlier.")
+    elif growth is not None and growth >= 20:
+        out.append(f"Revenue grew {growth:.0f}% on a year earlier.")
+    if runway is not None and runway < SHORT_RUNWAY_MONTHS:
+        out.append(f"The business is spending more cash than it brings in, with about {runway:.0f} months of cash left.")
+    elif margin is not None and margin < 0:
+        out.append("The business is still running at a loss.")
+    return out
 
 
 def tips(view: dict) -> list[str]:

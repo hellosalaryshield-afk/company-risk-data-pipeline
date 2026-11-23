@@ -25,6 +25,7 @@ from app.models.company import Company
 from app.pipeline.company_collection import SUCCESS_STATUSES, run_source
 from app.pipeline.news_feed_collection import collect_news_feeds_if_stale
 from app.pipeline.source_selection import (
+    FINANCIALS_SOURCE,
     MARKET_SOURCE,
     MCA_SOURCE,
     NEWS_SIGNALS_SOURCE,
@@ -37,6 +38,8 @@ from app.pipeline.source_selection import (
 # news move daily; registry details and employee reviews change slowly.
 MAX_AGE_DAYS: dict[str, float] = {
     MARKET_SOURCE: 1,
+    # Results come out every quarter; checking monthly picks up a new quarter within weeks.
+    FINANCIALS_SOURCE: 30,
     NEWS_SIGNALS_SOURCE: 1,
     MCA_SOURCE: 30,
     WORKPLACE_SOURCE: 90,

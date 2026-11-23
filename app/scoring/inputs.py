@@ -20,6 +20,10 @@ MCA_SOURCE_NAME = "data_gov_mca_company_master"
 
 # Feature key -> KPI the pipeline already stores.
 KPI_FEATURES = {
+    "revenue_growth_yoy": "fin_revenue_growth_yoy_pct",
+    "operating_margin": "fin_operating_margin_pct",
+    "cash_runway_months": "fin_cash_runway_months",
+    "debt_to_equity": "fin_debt_to_equity",
     "share_price_change_6m": "market_price_change_pct_period",
     "glassdoor_rating": "glassdoor_rating",
     "positive_outlook_share": "glassdoor_business_outlook_rating",

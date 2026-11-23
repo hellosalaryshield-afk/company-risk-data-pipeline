@@ -5,6 +5,7 @@ from app.companies.segments import (
     INDIA_UNLISTED_FUNDED,
 )
 from app.pipeline.source_selection import (
+    FINANCIALS_SOURCE,
     GDELT_SOURCE,
     MARKET_SOURCE,
     MCA_SOURCE,
@@ -25,6 +26,7 @@ def test_india_listed_gets_every_source():
         NEWS_SOURCE,
         MCA_SOURCE,
         MARKET_SOURCE,
+        FINANCIALS_SOURCE,
         WORKPLACE_SOURCE,
         GDELT_SOURCE,
         NEWS_SIGNALS_SOURCE,
@@ -36,6 +38,7 @@ def test_india_unlisted_skips_market_data():
 
     assert MARKET_SOURCE not in sources
     assert MCA_SOURCE in sources
+    assert FINANCIALS_SOURCE not in sources
 
 
 def test_foreign_listed_skips_mca():
@@ -43,6 +46,7 @@ def test_foreign_listed_skips_mca():
 
     assert MCA_SOURCE not in sources
     assert MARKET_SOURCE in sources
+    assert FINANCIALS_SOURCE in sources
 
 
 def test_foreign_unlisted_gets_news_and_workplace():
@@ -61,7 +65,7 @@ def test_metered_sources_are_excluded_when_not_requested():
     without = sources_for_segment(INDIA_LISTED, include_metered=False)
 
     assert WORKPLACE_SOURCE not in without
-    assert set(without) == {NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE}
+    assert set(without) == {NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, FINANCIALS_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE}
 
 
 def test_only_the_glassdoor_actor_is_metered():
@@ -104,7 +108,7 @@ def test_only_gdelt_is_slow():
 def test_free_and_fast_selection_drops_both_metered_and_slow():
     lean = sources_for_segment(INDIA_LISTED, include_metered=False, include_slow=False)
 
-    assert set(lean) == {NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE}
+    assert set(lean) == {NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, FINANCIALS_SOURCE}
 
 
 def test_slow_skip_reason_explains_the_batch_alternative():

@@ -36,6 +36,10 @@ def stub_sources(monkeypatch):
         return {"status": "completed", "collection_run_id": 3, "record_found": True, "kpis": {"market_price": 10.0}}
 
 
+    def fake_financials(db, query, **kwargs):
+        calls.append("financials")
+        return {"status": "completed", "collection_run_id": 5, "record_found": True, "kpis": {"fin_operating_margin_pct": 24.6}}
+
     def fake_gdelt(db, query, timespan="3m", **kwargs):
         calls.append("gdelt")
         return {"status": "completed", "collection_run_id": 4, "records_stored": 1, "kpis": {"gdelt_avg_tone": -1.5}}
@@ -43,6 +47,7 @@ def stub_sources(monkeypatch):
     monkeypatch.setattr(company_collection, "collect_news_for_company", fake_news)
     monkeypatch.setattr(company_collection, "collect_mca_for_company", fake_mca)
     monkeypatch.setattr(company_collection, "collect_market_for_company", fake_market)
+    monkeypatch.setattr(company_collection, "collect_financials_for_company", fake_financials)
     monkeypatch.setattr(company_collection, "collect_gdelt_for_company", fake_gdelt)
     return calls
 
@@ -60,12 +65,15 @@ def test_listed_company_runs_every_free_source(db_session, stub_sources):
     assert result["status"] == "completed"
     assert result["segment"]["segment"] == "INDIA_LISTED"
     # Glassdoor is metered, so it is absent unless the caller opts in.
-    assert stub_sources == ["news", "mca", "market", "gdelt"]
-    assert result["sources_succeeded"] == ["newsapi", "yahoo_finance_chart", "gdelt_doc", "gemini_news_signals"]
+    assert stub_sources == ["news", "mca", "market", "financials", "gdelt"]
+    assert result["sources_succeeded"] == [
+        "newsapi", "yahoo_finance_chart", "yahoo_finance_fundamentals", "gdelt_doc", "gemini_news_signals"
+    ]
     assert result["sources_failed"] == ["data_gov_mca_company_master"]
     assert result["kpis"] == {
         "layoff_news_count": 1.0,
         "market_price": 10.0,
+        "fin_operating_margin_pct": 24.6,
         "gdelt_avg_tone": -1.5,
     }
 
@@ -93,6 +101,7 @@ def test_undetermined_segment_runs_only_name_based_sources(db_session, stub_sour
     assert set(result["sources_skipped"]) == {
         "data_gov_mca_company_master",
         "yahoo_finance_chart",
+        "yahoo_finance_fundamentals",
         "apify_glassdoor_company_search",
     }
 

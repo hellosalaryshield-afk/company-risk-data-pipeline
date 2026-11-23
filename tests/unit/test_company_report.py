@@ -81,6 +81,7 @@ def test_build_company_report_for_a_listed_company(db_session):
         "newsapi",
         "data_gov_mca_company_master",
         "yahoo_finance_chart",
+        "yahoo_finance_fundamentals",
         "gdelt_doc",
         "gemini_news_signals",
     }

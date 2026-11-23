@@ -10,6 +10,7 @@ from app.companies.segments import (
 NEWS_SOURCE = "newsapi"
 MCA_SOURCE = "data_gov_mca_company_master"
 MARKET_SOURCE = "yahoo_finance_chart"
+FINANCIALS_SOURCE = "yahoo_finance_fundamentals"
 WORKPLACE_SOURCE = "apify_glassdoor_company_search"
 GDELT_SOURCE = "gdelt_doc"
 NEWS_SIGNALS_SOURCE = "gemini_news_signals"
@@ -33,10 +34,10 @@ SLOW_SOURCES = frozenset({GDELT_SOURCE, NEWS_SIGNALS_SOURCE})
 # actually return company-level data, so the orchestrator does not waste calls or record
 # misleading failures. See docs/source-feasibility.md for the evidence behind each row.
 SEGMENT_SOURCES: dict[str | None, tuple[str, ...]] = {
-    INDIA_LISTED: (NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
+    INDIA_LISTED: (NEWS_SOURCE, MCA_SOURCE, MARKET_SOURCE, FINANCIALS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
     INDIA_UNLISTED_FUNDED: (NEWS_SOURCE, MCA_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
     INDIA_UNLISTED_NON_FUNDED: (NEWS_SOURCE, MCA_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
-    FOREIGN_LISTED: (NEWS_SOURCE, MARKET_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
+    FOREIGN_LISTED: (NEWS_SOURCE, MARKET_SOURCE, FINANCIALS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
     FOREIGN_UNLISTED_FUNDED: (NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
     FOREIGN_UNLISTED_NON_FUNDED: (NEWS_SOURCE, WORKPLACE_SOURCE, GDELT_SOURCE, NEWS_SIGNALS_SOURCE),
     # Segment could not be determined. News and workplace work from the company name alone,
@@ -47,6 +48,7 @@ SEGMENT_SOURCES: dict[str | None, tuple[str, ...]] = {
 SKIP_REASONS = {
     MCA_SOURCE: "MCA/Data.gov covers Indian companies only.",
     MARKET_SOURCE: "Yahoo Finance market data covers listed companies only.",
+    FINANCIALS_SOURCE: "Financial results are collected for listed companies only.",
     WORKPLACE_SOURCE: "Glassdoor workplace data applies to all segments.",
     GDELT_SOURCE: "GDELT news tone applies to all segments.",
     NEWS_SIGNALS_SOURCE: "Gemini news signals apply to all segments.",
@@ -56,6 +58,7 @@ ALL_SOURCES: tuple[str, ...] = (
     NEWS_SOURCE,
     MCA_SOURCE,
     MARKET_SOURCE,
+    FINANCIALS_SOURCE,
     WORKPLACE_SOURCE,
     GDELT_SOURCE,
     NEWS_SIGNALS_SOURCE,
