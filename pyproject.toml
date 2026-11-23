@@ -22,6 +22,10 @@ dependencies = [
 dev = [
     "pytest>=8.4.0",
 ]
+# Reading the company taxonomy spreadsheet (scripts/clean_company_directory.py). Not needed by the server.
+directory = [
+    "openpyxl>=3.1.0",
+]
 observability = [
     "logfire[fastapi,httpx,sqlalchemy]>=5.4.0",
 ]
