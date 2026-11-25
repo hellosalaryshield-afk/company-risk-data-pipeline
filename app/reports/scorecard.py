@@ -415,17 +415,13 @@ def tips(view: dict) -> list[str]:
 
 
 def markers(view: dict) -> dict | None:
-    """Where the company and sector-average labels sit on the band scale, so they never collide."""
+    """Where the score marker and its short label sit on the band scale.
+
+    The label ("Score 44") goes on whichever side of the marker has room, so it never
+    runs off the page; the company name is the heading above and the sector average is
+    written out under the bar, so nothing on the scale can collide.
+    """
     if not view["scored"]:
         return None
     score = view["score"]
-    average = view["sector_average"]
-    # The two labels face away from each other, as in the design: whichever marker is
-    # further left labels to its left. A score near the right edge always labels left.
-    average_left = average is not None and average < score
-    return {
-        "score": score,
-        "average": average,
-        "score_label_left": (average is not None and score < average) or score > 85,
-        "average_label_left": average_left,
-    }
+    return {"score": score, "average": view["sector_average"], "score_label_left": score > 50}

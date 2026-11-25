@@ -1164,12 +1164,11 @@ document.getElementById('survey-form').addEventListener('submit', async (e) => {
   function scale(s) {
     const score = s.score, avg = s.sector_average;
     const b = BANDS[s.band];
-    const avgLeft = avg != null && avg < score;
-    const scoreLeft = (avg != null && score < avg) || score > 85;
-    const labels = [
-      `<span style="position:absolute;left:${score}%;bottom:3px;${scoreLeft ? 'transform:translateX(-100%);padding-right:7px' : 'padding-left:7px'};font-size:11px;font-weight:600;white-space:nowrap">${esc(s.name)} ${score}</span>`,
-      avg != null ? `<span class="hidden sm:inline" style="position:absolute;left:${avg}%;bottom:3px;${avgLeft ? 'transform:translateX(-100%);padding-right:7px' : 'padding-left:7px'};font-size:11px;color:rgba(242,237,228,0.5);white-space:nowrap">Sector avg ${Math.round(avg)}</span>` : '',
-    ].join('');
+    // A short label on whichever side of the marker has room. The company name is the
+    // heading just above, and the sector average is spelled out under the bar, so the
+    // two never collide or run off the card.
+    const scoreLeft = score > 50;
+    const labels = `<span style="position:absolute;left:${score}%;bottom:3px;${scoreLeft ? 'transform:translateX(-100%);padding-right:7px' : 'padding-left:7px'};font-size:11px;font-weight:600;white-space:nowrap">Score ${score}</span>`;
     const blocks = Object.entries(BANDS).map(([name, x], i) =>
       `<div style="flex:1;height:${[9, 15, 20, 26][i]}px;background:${x.line};opacity:${name === s.band ? 1 : 0.35}"></div>`).join('');
     const legend = Object.entries(BANDS).map(([name, x]) =>
@@ -1183,7 +1182,7 @@ document.getElementById('survey-form').addEventListener('submit', async (e) => {
           <div style="position:absolute;left:${score}%;top:-18px;bottom:-4px;width:2px;margin-left:-1px;background:#F2EDE4"></div>
         </div>
         <div style="display:flex;gap:3px;margin-top:7px;font-size:11px;color:rgba(242,237,228,0.5)">${legend}</div>
-        ${avg != null ? `<p class="sm:hidden" style="margin:8px 0 0;font-size:11px;color:rgba(242,237,228,0.5)">┆ Dashed line: sector average ${Math.round(avg)}</p>` : ''}
+        ${avg != null ? `<p style="margin:8px 0 0;font-size:11px;color:rgba(242,237,228,0.5)">┆ Dashed line: sector average ${Math.round(avg)}</p>` : ''}
       </div>`;
   }
 

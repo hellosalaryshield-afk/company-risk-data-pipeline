@@ -156,10 +156,7 @@
 
   <div style="margin-top:10px">
     <div style="position:relative;height:18px">
-      <div style="position:absolute;left:{{ s.markers.score }}%;bottom:2px;white-space:nowrap;font-size:10.5px;font-weight:700;{{ 'transform:translateX(-100%);padding-right:7px' if s.markers.score_label_left else 'padding-left:7px' }}">{{ s.name }} {{ s.score }}</div>
-      {% if s.markers.average is not none %}
-      <div style="position:absolute;left:{{ s.markers.average }}%;bottom:2px;white-space:nowrap;font-size:10px;color:var(--ink3);{{ 'transform:translateX(-100%);padding-right:7px' if s.markers.average_label_left else 'padding-left:7px' }}">Sector average {{ s.markers.average }}</div>
-      {% endif %}
+      <div style="position:absolute;left:{{ s.markers.score }}%;bottom:2px;white-space:nowrap;font-size:10.5px;font-weight:700;{{ 'transform:translateX(-100%);padding-right:7px' if s.markers.score_label_left else 'padding-left:7px' }}">Score {{ s.score }}</div>
     </div>
     <div style="position:relative;display:flex;align-items:flex-end;gap:3px;height:28px">
       {% for b in s.bands %}<div style="flex:1;height:{{ [10, 16, 22, 28][loop.index0] }}px;background:var(--{{ b.var }});{{ '' if b.name == s.band else 'opacity:0.4' }}"></div>{% endfor %}
@@ -169,6 +166,9 @@
     <div style="display:flex;gap:3px;margin-top:6px;font-size:10px;color:var(--ink3)">
       {% for b in s.bands %}<div style="flex:1"><span style="font-weight:{{ 700 if b.name == s.band else 600 }};color:var(--{{ b.text_var if b.name == s.band else 'ink2' }})">{{ b.name }}</span> {{ b.range }}</div>{% endfor %}
     </div>
+    {% if s.markers.average is not none %}
+    <div style="margin-top:5px;font-size:10px;color:var(--ink3)">┆ Dashed line: sector average {{ s.markers.average }}</div>
+    {% endif %}
   </div>
 
   {{ plain_words_block('12px') }}

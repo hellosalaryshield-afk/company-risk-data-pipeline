@@ -113,6 +113,14 @@ def test_unlisted_startups_count_as_funded(db_session, directory):
     assert company.cin == "U80903KA2011PTC061427" and company.ticker is None
 
 
+def test_suggestions_keep_the_directory_order_once_both_companies_exist(client, db_session):
+    first = client.get("/public/companies/search", params={"q": "kotak"}).json()
+    again = client.get("/public/companies/search", params={"q": "kotak"}).json()  # both now exist as companies
+
+    assert [s["name"] for s in first["suggestions"]] == [s["name"] for s in again["suggestions"]]
+    assert again["suggestions"][0]["name"] == "Kotak Mahindra Bank Ltd"
+
+
 def test_public_search_reaches_the_directory(client, db_session):
     exact = client.get("/public/companies/search", params={"q": "HDFC Bank"}).json()
     several = client.get("/public/companies/search", params={"q": "kotak"}).json()

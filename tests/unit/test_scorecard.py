@@ -135,13 +135,30 @@ def test_a_company_without_enough_data_gets_no_score_and_says_so(db_session, sma
     assert view["tips"][0].startswith("We could not score this company yet")
 
 
-def test_marker_labels_face_away_from_each_other():
-    assert markers({"scored": True, "score": 19, "sector_average": 11}) == {
-        "score": 19, "average": 11, "score_label_left": False, "average_label_left": True,
+def test_the_score_label_sits_on_the_side_with_room():
+    # A low score labels to the right of its marker, a high one to the left, so the label
+    # never runs off the edge of the scale (a long company name once did).
+    assert markers({"scored": True, "score": 10, "sector_average": 19}) == {
+        "score": 10, "average": 19, "score_label_left": False,
     }
-    assert markers({"scored": True, "score": 30, "sector_average": 60})["score_label_left"] is True
+    assert markers({"scored": True, "score": 72, "sector_average": 40})["score_label_left"] is True
     assert markers({"scored": True, "score": 92, "sector_average": None})["score_label_left"] is True
     assert markers({"scored": False}) is None
+
+
+def test_the_scale_shows_a_short_label_and_spells_out_the_sector_average(db_session):
+    from app.reports.scorecard_render import render_scorecard_html
+
+    company = db_session.create_company(canonical_name="Sun Pharma Advanced Research Company Ltd", ticker="SPARC",
+                                        exchange="NSE")
+    view = build_scorecard(db_session.session, company)
+    view.update(scored=True, score=10, sector_average=19, markers=markers({"scored": True, "score": 10, "sector_average": 19}))
+
+    html = render_scorecard_html(view, "night")
+
+    assert "Score 10</div>" in html
+    assert "Sun Pharma Advanced Research Company Ltd 10" not in html
+    assert "Dashed line: sector average 19" in html
 
 
 def test_html_renders_both_themes_with_the_company_data(db_session, swiggy):

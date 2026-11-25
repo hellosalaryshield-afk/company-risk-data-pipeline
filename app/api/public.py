@@ -93,11 +93,14 @@ def search_companies(q: str = Query(..., min_length=1, max_length=120), db: Sess
         company = onboard(db, db.get(DirectoryCompany, hits[0].id))
         return {"status": "matched", "query": q, "match": company_card(company, scores.get(company.id)), "suggestions": []}
 
-    candidates = list(resolved.candidates)
+    # Directory suggestions come in its order (listed, bigger, better-covered first), so
+    # "sun pharma" offers Sun Pharmaceutical Industries before Sun Pharma Advanced Research.
+    candidates: list[Company] = []
     for hit in hits:
         company = onboard(db, db.get(DirectoryCompany, hit.id))
         if all(c.id != company.id for c in candidates):
             candidates.append(company)
+    candidates += [c for c in resolved.candidates if all(c.id != x.id for x in candidates)]
     if not candidates and resolved.normalized_query:
         aliases = db.execute(select(CompanyAlias.normalized_alias, CompanyAlias.company_id)).all()
         by_alias = {alias: company_id for alias, company_id in aliases}
