@@ -1,0 +1,131 @@
+name,ticker,exchange,industry,aliases
+Meta Platforms Inc,META,NASDAQ,Internet & Software,Meta|Facebook|Instagram|WhatsApp
+Alphabet Inc,GOOGL,NASDAQ,Internet & Software,Google|YouTube|Google India
+Microsoft Corporation,MSFT,NASDAQ,Internet & Software,Microsoft|Microsoft India|LinkedIn|GitHub
+Apple Inc,AAPL,NASDAQ,Hardware & Devices,Apple
+Amazon.com Inc,AMZN,NASDAQ,E-Commerce & Retail,Amazon|AWS|Amazon Web Services|Amazon India
+Netflix Inc,NFLX,NASDAQ,Media & Entertainment,Netflix
+Nvidia Corporation,NVDA,NASDAQ,Semiconductors,Nvidia
+Intel Corporation,INTC,NASDAQ,Semiconductors,Intel|Intel India
+Advanced Micro Devices Inc,AMD,NASDAQ,Semiconductors,AMD
+Qualcomm Inc,QCOM,NASDAQ,Semiconductors,Qualcomm
+Broadcom Inc,AVGO,NASDAQ,Semiconductors,Broadcom|VMware
+Texas Instruments Inc,TXN,NASDAQ,Semiconductors,Texas Instruments|TI India
+Micron Technology Inc,MU,NASDAQ,Semiconductors,Micron
+Applied Materials Inc,AMAT,NASDAQ,Semiconductors,Applied Materials
+Lam Research Corporation,LRCX,NASDAQ,Semiconductors,Lam Research
+KLA Corporation,KLAC,NASDAQ,Semiconductors,KLA
+Analog Devices Inc,ADI,NASDAQ,Semiconductors,Analog Devices
+Marvell Technology Inc,MRVL,NASDAQ,Semiconductors,Marvell
+Cisco Systems Inc,CSCO,NASDAQ,Networking & Hardware,Cisco
+IBM Corporation,IBM,NYSE,IT Services & Consulting,IBM|International Business Machines|IBM India
+Oracle Corporation,ORCL,NYSE,Internet & Software,Oracle
+Salesforce Inc,CRM,NYSE,Internet & Software,Salesforce
+Adobe Inc,ADBE,NASDAQ,Internet & Software,Adobe
+ServiceNow Inc,NOW,NYSE,Internet & Software,ServiceNow
+Workday Inc,WDAY,NASDAQ,Internet & Software,Workday
+Intuit Inc,INTU,NASDAQ,Internet & Software,Intuit|QuickBooks|TurboTax
+Autodesk Inc,ADSK,NASDAQ,Internet & Software,Autodesk
+Cadence Design Systems Inc,CDNS,NASDAQ,Internet & Software,Cadence
+Synopsys Inc,SNPS,NASDAQ,Internet & Software,Synopsys
+Atlassian Corporation,TEAM,NASDAQ,Internet & Software,Atlassian|Jira
+Freshworks Inc,FRSH,NASDAQ,Internet & Software,Freshworks
+Snowflake Inc,SNOW,NYSE,Internet & Software,Snowflake
+Palo Alto Networks Inc,PANW,NASDAQ,Cybersecurity,Palo Alto Networks
+Fortinet Inc,FTNT,NASDAQ,Cybersecurity,Fortinet
+CrowdStrike Holdings Inc,CRWD,NASDAQ,Cybersecurity,CrowdStrike
+Zscaler Inc,ZS,NASDAQ,Cybersecurity,Zscaler
+Okta Inc,OKTA,NASDAQ,Cybersecurity,Okta
+Zoom Communications Inc,ZM,NASDAQ,Internet & Software,Zoom|Zoom Video
+DocuSign Inc,DOCU,NASDAQ,Internet & Software,DocuSign
+Twilio Inc,TWLO,NYSE,Internet & Software,Twilio
+Dell Technologies Inc,DELL,NYSE,Networking & Hardware,Dell
+HP Inc,HPQ,NYSE,Networking & Hardware,HP|Hewlett-Packard
+Hewlett Packard Enterprise Company,HPE,NYSE,Networking & Hardware,HPE|Hewlett Packard Enterprise|Juniper Networks
+NetApp Inc,NTAP,NASDAQ,Networking & Hardware,NetApp
+Arista Networks Inc,ANET,NYSE,Networking & Hardware,Arista
+Western Digital Corporation,WDC,NASDAQ,Networking & Hardware,Western Digital
+Seagate Technology Holdings plc,STX,NASDAQ,Networking & Hardware,Seagate
+Uber Technologies Inc,UBER,NYSE,Internet & Software,Uber
+Airbnb Inc,ABNB,NASDAQ,Internet & Software,Airbnb
+Booking Holdings Inc,BKNG,NASDAQ,Internet & Software,Booking.com|Agoda
+Expedia Group Inc,EXPE,NASDAQ,Internet & Software,Expedia
+eBay Inc,EBAY,NASDAQ,E-Commerce & Retail,eBay
+PayPal Holdings Inc,PYPL,NASDAQ,Payments,PayPal
+Visa Inc,V,NYSE,Payments,Visa
+Mastercard Inc,MA,NYSE,Payments,Mastercard
+American Express Company,AXP,NYSE,Payments,American Express|Amex
+Accenture plc,ACN,NYSE,IT Services & Consulting,Accenture
+Cognizant Technology Solutions Corporation,CTSH,NASDAQ,IT Services & Consulting,Cognizant|CTS
+EPAM Systems Inc,EPAM,NYSE,IT Services & Consulting,EPAM
+Genpact Ltd,G,NYSE,IT Services & Consulting,Genpact
+ExlService Holdings Inc,EXLS,NASDAQ,IT Services & Consulting,EXL|ExlService
+Gartner Inc,IT,NYSE,IT Services & Consulting,Gartner
+Concentrix Corporation,CNXC,NASDAQ,IT Services & Consulting,Concentrix
+DXC Technology Company,DXC,NYSE,IT Services & Consulting,DXC
+Kyndryl Holdings Inc,KD,NYSE,IT Services & Consulting,Kyndryl
+JPMorgan Chase & Co,JPM,NYSE,Banks & Financial Services,JPMorgan|JP Morgan|JPMorgan Chase|Chase
+Goldman Sachs Group Inc,GS,NYSE,Banks & Financial Services,Goldman Sachs
+Morgan Stanley,MS,NYSE,Banks & Financial Services,Morgan Stanley
+Citigroup Inc,C,NYSE,Banks & Financial Services,Citi|Citibank|Citigroup
+Wells Fargo & Company,WFC,NYSE,Banks & Financial Services,Wells Fargo
+Bank of America Corporation,BAC,NYSE,Banks & Financial Services,Bank of America|BofA
+BlackRock Inc,BLK,NYSE,Banks & Financial Services,BlackRock
+State Street Corporation,STT,NYSE,Banks & Financial Services,State Street
+Bank of New York Mellon Corporation,BK,NYSE,Banks & Financial Services,BNY|BNY Mellon
+Northern Trust Corporation,NTRS,NASDAQ,Banks & Financial Services,Northern Trust
+Charles Schwab Corporation,SCHW,NYSE,Banks & Financial Services,Schwab|Charles Schwab
+Capital One Financial Corporation,COF,NYSE,Banks & Financial Services,Capital One
+Synchrony Financial,SYF,NYSE,Banks & Financial Services,Synchrony
+Ameriprise Financial Inc,AMP,NYSE,Banks & Financial Services,Ameriprise
+S&P Global Inc,SPGI,NYSE,Banks & Financial Services,S&P Global|CRISIL
+Moody's Corporation,MCO,NYSE,Banks & Financial Services,Moody's
+MSCI Inc,MSCI,NYSE,Banks & Financial Services,MSCI
+Broadridge Financial Solutions Inc,BR,NYSE,Banks & Financial Services,Broadridge
+UnitedHealth Group Inc,UNH,NYSE,Healthcare & Pharma,UnitedHealth|Optum|UnitedHealth Group
+Johnson & Johnson,JNJ,NYSE,Healthcare & Pharma,Johnson & Johnson|J&J
+Pfizer Inc,PFE,NYSE,Healthcare & Pharma,Pfizer
+Abbott Laboratories,ABT,NYSE,Healthcare & Pharma,Abbott
+Merck & Co Inc,MRK,NYSE,Healthcare & Pharma,Merck|MSD
+Eli Lilly and Company,LLY,NYSE,Healthcare & Pharma,Eli Lilly|Lilly
+Medtronic plc,MDT,NYSE,Healthcare & Pharma,Medtronic
+GE HealthCare Technologies Inc,GEHC,NASDAQ,Healthcare & Pharma,GE HealthCare|GE Healthcare
+Thermo Fisher Scientific Inc,TMO,NYSE,Healthcare & Pharma,Thermo Fisher
+Danaher Corporation,DHR,NYSE,Healthcare & Pharma,Danaher
+The Cigna Group,CI,NYSE,Healthcare & Pharma,Cigna|Evernorth
+Elevance Health Inc,ELV,NYSE,Healthcare & Pharma,Elevance|Anthem|Carelon
+IQVIA Holdings Inc,IQV,NYSE,Healthcare & Pharma,IQVIA
+GE Aerospace,GE,NYSE,Industrials,GE|General Electric|GE Aerospace
+Honeywell International Inc,HON,NASDAQ,Industrials,Honeywell
+Caterpillar Inc,CAT,NYSE,Industrials,Caterpillar
+Boeing Company,BA,NYSE,Industrials,Boeing
+3M Company,MMM,NYSE,Industrials,3M
+Emerson Electric Co,EMR,NYSE,Industrials,Emerson
+Eaton Corporation plc,ETN,NYSE,Industrials,Eaton
+Cummins Inc,CMI,NYSE,Industrials,Cummins
+Deere & Company,DE,NYSE,Industrials,John Deere|Deere
+Otis Worldwide Corporation,OTIS,NYSE,Industrials,Otis|Otis Elevator
+Carrier Global Corporation,CARR,NYSE,Industrials,Carrier
+General Motors Company,GM,NYSE,Automotive,General Motors|GM
+Ford Motor Company,F,NYSE,Automotive,Ford
+Tesla Inc,TSLA,NASDAQ,Automotive,Tesla
+Walmart Inc,WMT,NASDAQ,E-Commerce & Retail,Walmart|Walmart Global Tech
+Target Corporation,TGT,NYSE,E-Commerce & Retail,Target|Target India
+Lowe's Companies Inc,LOW,NYSE,E-Commerce & Retail,Lowe's|Lowes India
+Home Depot Inc,HD,NYSE,E-Commerce & Retail,Home Depot
+Procter & Gamble Company,PG,NYSE,Consumer Goods,P&G|Procter & Gamble
+Coca-Cola Company,KO,NYSE,Consumer Goods,Coca-Cola|Coke
+PepsiCo Inc,PEP,NASDAQ,Consumer Goods,PepsiCo|Pepsi
+Mondelez International Inc,MDLZ,NASDAQ,Consumer Goods,Mondelez|Cadbury
+Colgate-Palmolive Company,CL,NYSE,Consumer Goods,Colgate-Palmolive
+Kimberly-Clark Corporation,KMB,NYSE,Consumer Goods,Kimberly-Clark
+Nike Inc,NKE,NYSE,Consumer Goods,Nike
+Starbucks Corporation,SBUX,NASDAQ,Consumer Goods,Starbucks
+McDonald's Corporation,MCD,NYSE,Consumer Goods,McDonald's
+Marriott International Inc,MAR,NASDAQ,Consumer Goods,Marriott
+Hilton Worldwide Holdings Inc,HLT,NYSE,Consumer Goods,Hilton
+AT&T Inc,T,NYSE,Telecom & Media,AT&T
+Verizon Communications Inc,VZ,NYSE,Telecom & Media,Verizon
+Comcast Corporation,CMCSA,NASDAQ,Telecom & Media,Comcast
+Walt Disney Company,DIS,NYSE,Telecom & Media,Disney|Walt Disney
+Warner Bros Discovery Inc,WBD,NASDAQ,Telecom & Media,Warner Bros Discovery|WBD

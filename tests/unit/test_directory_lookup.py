@@ -41,13 +41,23 @@ def directory(db_session, tmp_path):
         directory_row("Tata Consultancy Services Ltd", sector="Information Technology",
                       industry="IT Services & Consulting", nse="TCS"),
     ]
+    rows.append(directory_row("Meta Infotech Ltd", sector="Information Technology", industry="IT Services & Consulting",
+                              size="sme", bse="544441"))
     path = tmp_path / "directory.csv"
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=COLUMNS)
         writer.writeheader()
         writer.writerows(rows)
+    us_path = tmp_path / "us.csv"
+    us_path.write_text(
+        "name,ticker,exchange,industry,aliases\n"
+        "Meta Platforms Inc,META,NASDAQ,Internet & Software,Meta|Facebook|Instagram|WhatsApp\n"
+        "Amazon.com Inc,AMZN,NASDAQ,E-Commerce & Retail,Amazon|AWS\n",
+        encoding="utf-8",
+    )
     db_session.create_company(canonical_name="Tata Consultancy Services", aliases=["TCS"], ticker="TCS", exchange="NSE")
-    result = load_directory(db_session.session, path)
+    db_session.create_company(canonical_name="Amazon", ticker="AMZN", exchange="NASDAQ", country="United States")
+    result = load_directory(db_session.session, path, us_path)
     yield result
     DirectoryIndex.reset()
 
@@ -65,7 +75,7 @@ def client(db_session, directory, monkeypatch):
 def test_loading_links_companies_that_already_exist(db_session, directory):
     tcs = db_session.session.scalar(select(DirectoryCompany).where(DirectoryCompany.nse_symbol == "TCS"))
 
-    assert directory["rows"] == 7 and directory["linked_to_existing"] == 1
+    assert directory["rows"] == 8 and directory["us_rows"] == 2 and directory["linked_to_existing"] == 2
     assert tcs.company_id is not None
 
 
@@ -133,3 +143,33 @@ def test_public_search_reaches_the_directory(client, db_session):
     assert existing["match"]["name"] == "Tata Consultancy Services"  # existing companies come first
     assert nothing["status"] == "not_found"
     assert db_session.session.scalar(select(Company).where(Company.canonical_name == "HDFC Bank Ltd")) is not None
+
+
+def test_us_companies_are_found_by_brand_ticker_and_name(db_session, directory):
+    index = DirectoryIndex.get(db_session.session)
+
+    for query in ("meta", "Facebook", "instagram", "META", "Meta Platforms"):
+        hits, exact = index.search(query)
+        assert exact and hits[0].name == "Meta Platforms Inc", query
+    # The small Indian "Meta Infotech" is still there for its full name.
+    hits, exact = index.search("Meta Infotech")
+    assert exact and hits[0].name == "Meta Infotech Ltd"
+
+
+def test_a_us_company_is_onboarded_as_us_listed(db_session, directory):
+    from app.companies.repository import CompanyRepository
+
+    row = db_session.session.scalar(select(DirectoryCompany).where(DirectoryCompany.foreign_ticker == "META"))
+    company = onboard(db_session.session, row)
+
+    assert (company.ticker, company.exchange, company.country) == ("META", "NASDAQ", "United States")
+    assert CompanyRepository(db_session.session).classify_segment(company).segment == "FOREIGN_LISTED"
+    aliases = set(db_session.session.scalars(select(CompanyAlias.normalized_alias).where(CompanyAlias.company_id == company.id)))
+    assert {"facebook", "instagram"} <= aliases
+
+
+def test_existing_us_companies_stay_linked(db_session, directory):
+    amazon = db_session.session.scalar(select(DirectoryCompany).where(DirectoryCompany.foreign_ticker == "AMZN"))
+    existing = db_session.session.scalar(select(Company).where(Company.canonical_name == "Amazon"))
+
+    assert amazon.company_id == existing.id and onboard(db_session.session, amazon).id == existing.id

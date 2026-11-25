@@ -36,5 +36,11 @@ class DirectoryCompany(Base):
     market_cap_text: Mapped[str | None] = mapped_column(Text)
     source_url: Mapped[str | None] = mapped_column(Text)
     also_listed_under: Mapped[str | None] = mapped_column(Text)
+    # Companies listed outside India (data/us_companies.csv): their ticker and exchange,
+    # and the brand names people type ("Facebook" for Meta Platforms), "|" separated.
+    country: Mapped[str] = mapped_column(String(60), nullable=False, default="India", server_default="India")
+    foreign_ticker: Mapped[str | None] = mapped_column(String(20), index=True)
+    foreign_exchange: Mapped[str | None] = mapped_column(String(20))
+    aliases: Mapped[str | None] = mapped_column(Text)
     company_id: Mapped[int | None] = mapped_column(ForeignKey("companies.id", ondelete="SET NULL"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

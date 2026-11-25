@@ -26,6 +26,9 @@ from app.models.company import Company, CompanyAlias
 from app.models.directory import DirectoryCompany
 
 DIRECTORY_CSV = Path("data/company_directory.csv")
+# US-listed companies with large teams in India; the taxonomy sheet covers India only.
+US_COMPANIES_CSV = Path("data/us_companies.csv")
+US_SECTOR = "US-listed companies"
 STARTUP_TIERS = {"late_stage", "growth_stage", "early_stage"}
 # Bigger, better-covered companies first when a search is ambiguous.
 COVERAGE_RANK = {"full": 0, "registry": 1, "basic": 2}
@@ -52,8 +55,32 @@ def brand_keys(name: str) -> list[str]:
 # Loading ---------------------------------------------------------------------------------------
 
 
-def load_directory(db: Session, path: Path = DIRECTORY_CSV) -> dict:
-    """Replace the directory with the CSV, keeping links to companies already onboarded."""
+def alias_keys(aliases: str | None) -> list[str]:
+    keys = [normalize_company_name(a) for a in (aliases or "").split("|")]
+    return [k for k in keys if len(k) >= 2]
+
+
+def us_directory_rows(path: Path) -> list[DirectoryCompany]:
+    """Rows for data/us_companies.csv: name, ticker, exchange, industry, aliases."""
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8") as handle:
+        records = list(csv.DictReader(handle))
+    return [
+        DirectoryCompany(
+            name=r["name"], name_key=name_key(r["name"]), sector=US_SECTOR, industry=r["industry"],
+            listing="listed", board="mainboard", size_tier="large",
+            peer_group=f"{US_SECTOR} / {r['industry']} / listed / large",
+            entity_type="company", coverage="full", country="United States",
+            foreign_ticker=r["ticker"].strip().upper(), foreign_exchange=r["exchange"].strip().upper(),
+            aliases=r.get("aliases") or None,
+        )
+        for r in records
+    ]
+
+
+def load_directory(db: Session, path: Path = DIRECTORY_CSV, us_path: Path = US_COMPANIES_CSV) -> dict:
+    """Replace the directory with the CSVs, keeping links to companies already onboarded."""
     links = {(row.name, row.sector): row.company_id
              for row in db.scalars(select(DirectoryCompany).where(DirectoryCompany.company_id.is_not(None)))}
     db.execute(delete(DirectoryCompany))
@@ -71,11 +98,15 @@ def load_directory(db: Session, path: Path = DIRECTORY_CSV) -> dict:
             source_url=record["source_url"] or None, also_listed_under=record["also_listed_under"] or None,
             company_id=links.get((record["name"], record["sector"])),
         ))
+    us_rows = us_directory_rows(us_path)
+    for row in us_rows:
+        row.company_id = links.get((row.name, row.sector))
+        db.add(row)
     db.flush()
     linked = link_existing_companies(db)
     db.commit()
     DirectoryIndex.reset()
-    return {"rows": len(records), "kept_links": len(links), "linked_to_existing": linked}
+    return {"rows": len(records), "us_rows": len(us_rows), "kept_links": len(links), "linked_to_existing": linked}
 
 
 def link_existing_companies(db: Session) -> int:
@@ -87,7 +118,9 @@ def link_existing_companies(db: Session) -> int:
     linked = 0
     for row in db.scalars(select(DirectoryCompany).where(DirectoryCompany.company_id.is_(None))):
         company_id = (by_cin.get(row.cin or "") or by_ticker.get((row.nse_symbol or "").upper())
-                      or by_ticker.get(row.bse_code or "") or by_alias.get(row.name_key))
+                      or by_ticker.get(row.bse_code or "") or by_ticker.get((row.foreign_ticker or "").upper())
+                      or by_alias.get(row.name_key)
+                      or next((by_alias[k] for k in alias_keys(row.aliases) if k in by_alias), None))
         if company_id:
             row.company_id = company_id
             linked += 1
@@ -107,6 +140,7 @@ class Entry:
     nse: str
     bse: str
     cin: str
+    foreign: str
     coverage: str
     size_tier: str
 
@@ -126,7 +160,7 @@ class DirectoryIndex:
         self.by_key: dict[str, list[Entry]] = {}
         self.by_token: dict[str, set[int]] = {}
         for i, entry in enumerate(entries):
-            for code in (entry.nse, entry.bse, entry.cin):
+            for code in (entry.nse, entry.bse, entry.cin, entry.foreign):
                 if code:
                     self.by_code.setdefault(code.upper(), []).append(entry)
             for key in (entry.key, *entry.brands):
@@ -143,13 +177,17 @@ class DirectoryIndex:
                 rows = db.execute(select(
                     DirectoryCompany.id, DirectoryCompany.name, DirectoryCompany.name_key, DirectoryCompany.nse_symbol,
                     DirectoryCompany.bse_code, DirectoryCompany.cin, DirectoryCompany.coverage, DirectoryCompany.size_tier,
+                    DirectoryCompany.foreign_ticker, DirectoryCompany.aliases,
                 ).where(DirectoryCompany.coverage != "not_scored")).all()
-                entries = [
-                    Entry(id=r[0], name=r[1], key=r[2], brands=tuple(brand_keys(r[1])),
-                          tokens=tuple(dict.fromkeys(f"{r[2]} {' '.join(brand_keys(r[1]))}".split())),
-                          nse=r[3] or "", bse=r[4] or "", cin=r[5] or "", coverage=r[6], size_tier=r[7])
-                    for r in rows
-                ]
+                entries = []
+                for r in rows:
+                    brands = tuple(dict.fromkeys([*brand_keys(r[1]), *alias_keys(r[9])]))
+                    entries.append(Entry(
+                        id=r[0], name=r[1], key=r[2], brands=brands,
+                        tokens=tuple(dict.fromkeys(f"{r[2]} {' '.join(brands)}".split())),
+                        nse=r[3] or "", bse=r[4] or "", cin=r[5] or "", foreign=r[8] or "",
+                        coverage=r[6], size_tier=r[7],
+                    ))
                 cls._cached = DirectoryIndex(entries)
                 cls._cached_count = count
             return cls._cached
@@ -212,7 +250,7 @@ def onboard(db: Session, row: DirectoryCompany) -> Company:
     existing = None
     if row.cin:
         existing = db.scalar(select(Company).where(Company.cin == row.cin))
-    for code in (row.nse_symbol, row.bse_code):
+    for code in (row.nse_symbol, row.bse_code, row.foreign_ticker):
         if existing is None and code:
             existing = db.scalar(select(Company).where(Company.ticker == code))
     if existing is None and row.name_key:
@@ -223,19 +261,27 @@ def onboard(db: Session, row: DirectoryCompany) -> Company:
         db.commit()
         return existing
 
-    ticker, exchange = (row.nse_symbol, "NSE") if row.nse_symbol else (row.bse_code, "BSE") if row.bse_code else (None, None)
+    if row.foreign_ticker:
+        ticker, exchange = row.foreign_ticker, row.foreign_exchange
+    elif row.nse_symbol:
+        ticker, exchange = row.nse_symbol, "NSE"
+    elif row.bse_code:
+        ticker, exchange = row.bse_code, "BSE"
+    else:
+        ticker, exchange = None, None
     canonical = " ".join(BRACKET_RE.sub(" ", row.name).split()) or row.name
     if db.scalar(select(Company.id).where(Company.canonical_name == canonical)):
         canonical = f"{canonical} ({row.sector})"
     company = Company(
         canonical_name=canonical[:255], legal_name=row.name if row.cin or row.llpin else None,
-        country="India", sector=row.industry, industry=row.sub_sector,
+        country=row.country or "India", sector=row.industry, industry=row.sub_sector,
         cin=row.cin if row.cin and not db.scalar(select(Company.id).where(Company.cin == row.cin)) else None,
         funding_status=funding_status_for(row), ticker=ticker, exchange=exchange,
     )
     db.add(company)
     db.flush()
-    wanted = {normalize_company_name(a): a for a in dict.fromkeys([row.name, canonical, *BRACKET_RE.findall(row.name)])}
+    names = [row.name, canonical, *BRACKET_RE.findall(row.name), *(a.strip() for a in (row.aliases or "").split("|") if a.strip())]
+    wanted = {normalize_company_name(a): a for a in dict.fromkeys(names)}
     taken = set(db.scalars(select(CompanyAlias.normalized_alias).where(CompanyAlias.normalized_alias.in_(list(wanted)))))
     for normalized, alias in wanted.items():
         if normalized and normalized not in taken and len(normalized) >= 3 and normalized not in ("india", "unlisted"):
