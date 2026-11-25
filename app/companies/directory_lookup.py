@@ -207,10 +207,21 @@ def onboard(db: Session, row: DirectoryCompany) -> Company:
     """The scorable company for a directory row, created the first time it is needed."""
     if row.company_id and (company := db.get(Company, row.company_id)):
         return company
-    link_existing_companies(db)
-    if row.company_id and (company := db.get(Company, row.company_id)):
+    # A company may already exist under this CIN, ticker or name (added by hand, or from
+    # another directory row). Checking just this row keeps a search fast on a small server.
+    existing = None
+    if row.cin:
+        existing = db.scalar(select(Company).where(Company.cin == row.cin))
+    for code in (row.nse_symbol, row.bse_code):
+        if existing is None and code:
+            existing = db.scalar(select(Company).where(Company.ticker == code))
+    if existing is None and row.name_key:
+        alias = db.scalar(select(CompanyAlias).where(CompanyAlias.normalized_alias == row.name_key))
+        existing = db.get(Company, alias.company_id) if alias else None
+    if existing is not None:
+        row.company_id = existing.id
         db.commit()
-        return company
+        return existing
 
     ticker, exchange = (row.nse_symbol, "NSE") if row.nse_symbol else (row.bse_code, "BSE") if row.bse_code else (None, None)
     canonical = " ".join(BRACKET_RE.sub(" ", row.name).split()) or row.name
@@ -224,9 +235,9 @@ def onboard(db: Session, row: DirectoryCompany) -> Company:
     )
     db.add(company)
     db.flush()
-    taken = set(db.scalars(select(CompanyAlias.normalized_alias)))
-    for alias in dict.fromkeys([row.name, canonical, *BRACKET_RE.findall(row.name)]):
-        normalized = normalize_company_name(alias)
+    wanted = {normalize_company_name(a): a for a in dict.fromkeys([row.name, canonical, *BRACKET_RE.findall(row.name)])}
+    taken = set(db.scalars(select(CompanyAlias.normalized_alias).where(CompanyAlias.normalized_alias.in_(list(wanted)))))
+    for normalized, alias in wanted.items():
         if normalized and normalized not in taken and len(normalized) >= 3 and normalized not in ("india", "unlisted"):
             db.add(CompanyAlias(company_id=company.id, alias=alias.strip(), normalized_alias=normalized, source="directory"))
             taken.add(normalized)
