@@ -232,3 +232,21 @@ def test_real_pdf_render_produces_two_a4_pages(db_session, swiggy):
     width, height = float(reader.pages[0].mediabox.width), float(reader.pages[0].mediabox.height)
     assert (round(width), round(height)) == (595, 842)  # A4 in points
     assert "Swiggy" in reader.pages[0].extract_text()
+
+
+def test_plain_words_never_claim_no_news_when_news_was_not_checked():
+    from types import SimpleNamespace
+
+    from app.reports.scorecard import plain_words
+
+    company = SimpleNamespace(canonical_name="Sun Pharmaceutical Industries Ltd")
+    view = {"scored": True, "confidence": "Medium"}
+    unchecked = {"inputs": {}, "pillars": [{"name": "News", "score": None, "coverage": 0.0}]}
+    checked = {"inputs": {}, "pillars": [{"name": "News", "score": 0, "coverage": 1.0}]}
+
+    text = plain_words(company, view, unchecked, [], {}, listed=False)
+    assert "could not check recent news" in text
+    assert "no significant news" not in text and "no reports of layoffs" not in text
+
+    text = plain_words(company, view, checked, [], {}, listed=False)
+    assert "no significant news" in text and "no reports of layoffs" in text

@@ -356,14 +356,18 @@ def plain_words(company: Company, view: dict, score: dict, events: list[dict], m
         if event["raises"] and RISK_PHRASES[event["signal"]] not in risk_types:
             risk_types.append(RISK_PHRASES[event["signal"]])
     has_layoffs = any(event["signal"] == "layoffs" for event in events)
-    if risk_types:
+    news_checked = any(p["name"] == "News" and p["coverage"] > 0 for p in score.get("pillars", []))
+    if not news_checked and not events:
+        # Never say "no news" when the news could not be checked.
+        sentences.append("We could not check recent news for the company yet.")
+    elif risk_types:
         listed_types = risk_types[0] if len(risk_types) == 1 else ", ".join(risk_types[:-1]) + " and " + risk_types[-1]
         sentences.append(f"Recent news points to {listed_types}.")
     elif events:
         sentences.append("Recent news about the company is mostly positive or routine.")
     else:
         sentences.append("We found no significant news about the company in the last 30 days.")
-    if not has_layoffs:
+    if not has_layoffs and (news_checked or events):
         sentences.append("We found no reports of layoffs.")
 
     if not view["scored"]:

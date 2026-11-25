@@ -1178,7 +1178,7 @@ document.getElementById('survey-form').addEventListener('submit', async (e) => {
         <div style="position:relative;height:18px">${labels}</div>
         <div style="position:relative;display:flex;align-items:flex-end;gap:3px;height:26px">
           ${blocks}
-          ${avg != null ? `<div style="position:absolute;left:${avg}%;top:-18px;bottom:0;border-left:1px dashed rgba(242,237,228,0.5)"></div>` : ''}
+          ${avg != null ? `<div style="position:absolute;left:${avg}%;top:0;bottom:0;border-left:1px dashed rgba(242,237,228,0.5)"></div>` : ''}
           <div style="position:absolute;left:${score}%;top:-18px;bottom:-4px;width:2px;margin-left:-1px;background:#F2EDE4"></div>
         </div>
         <div style="display:flex;gap:3px;margin-top:7px;font-size:11px;color:rgba(242,237,228,0.5)">${legend}</div>
