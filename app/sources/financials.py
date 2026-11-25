@@ -17,6 +17,7 @@ cash and balance-sheet items only every six months:
 Ratios and percentages do not depend on currency, so INR and USD companies compare directly.
 """
 
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any
@@ -198,7 +199,20 @@ def pct_change(new: float, old: float) -> float:
     return round(100 * (new - old) / old, 2)
 
 
-def financial_kpis(fin: Financials) -> tuple[dict[str, float], dict[str, dict]]:
+BALANCE_SHEET_KPIS = ("fin_cash_runway_months", "fin_debt_to_equity")
+# Lenders and insurers: lending shows up as operating cash outflow and borrowing is the
+# business itself, so cash runway and debt-to-equity say nothing about their health.
+FINANCIAL_INSTITUTION_RE = re.compile(
+    r"\bbank|nbfc|lending|housing finance|microfinance|insurance|broking|capital markets|holding & investment|credit",
+    re.I,
+)
+
+
+def is_financial_institution(*labels: str | None) -> bool:
+    return any(label and FINANCIAL_INSTITUTION_RE.search(label) for label in labels)
+
+
+def financial_kpis(fin: Financials, financial_institution: bool = False) -> tuple[dict[str, float], dict[str, dict]]:
     """KPI values and, for each, how it was worked out (basis and report date)."""
     values: dict[str, float] = {}
     details: dict[str, dict] = {}
@@ -208,6 +222,8 @@ def financial_kpis(fin: Financials) -> tuple[dict[str, float], dict[str, dict]]:
         ("fin_cash_runway_months", cash_runway),
         ("fin_debt_to_equity", debt_to_equity),
     ):
+        if financial_institution and kpi in BALANCE_SHEET_KPIS:
+            continue
         value, detail = compute(fin)
         if value is not None:
             values[kpi] = value

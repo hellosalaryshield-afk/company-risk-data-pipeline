@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.companies.repository import CompanyRepository
@@ -13,7 +13,14 @@ from app.companies.segments import LISTED_SEGMENTS
 from app.models.collection import CollectionRun, KpiObservation, SourceRecord
 from app.models.company import Company
 from app.models.source import DataSource
-from app.sources.financials import KPI_UNITS, Financials, YahooFundamentalsClient, financial_kpis
+from app.sources.financials import (
+    BALANCE_SHEET_KPIS,
+    KPI_UNITS,
+    Financials,
+    YahooFundamentalsClient,
+    financial_kpis,
+    is_financial_institution,
+)
 from app.sources.market_data import UnsupportedExchangeError, build_symbol
 
 FINANCIALS_SOURCE_NAME = "yahoo_finance_fundamentals"
@@ -82,7 +89,14 @@ def collect_financials_for_company(db: Session, query: str, financials: Financia
     db.add(run)
     db.flush()
 
-    values, details = financial_kpis(financials)
+    financial_institution = is_financial_institution(company.sector, company.industry)
+    values, details = financial_kpis(financials, financial_institution=financial_institution)
+    if financial_institution:
+        # Older collections may have stored these before the rule existed; drop them so
+        # the score never reads a cash runway for a bank.
+        db.execute(delete(KpiObservation).where(
+            KpiObservation.company_id == company.id, KpiObservation.kpi_name.in_(BALANCE_SHEET_KPIS)
+        ))
     run.status = "completed"
     run.completed_at = now
     run.extra_metadata = {**run.extra_metadata, "found": bool(values)}

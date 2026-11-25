@@ -162,3 +162,22 @@ def test_the_scorecard_says_when_results_are_in_and_what_stands_out():
 
 def test_the_source_is_registered_under_its_name():
     assert FINANCIALS_SOURCE_NAME == "yahoo_finance_fundamentals"
+
+
+def test_banks_and_lenders_get_no_cash_runway_or_debt_ratio(db_session):
+    company = db_session.create_company(canonical_name="Bajaj Finance", ticker="BAJFINANCE", exchange="NSE",
+                                        sector="NBFC & Lending")
+
+    collect_financials_for_company(db_session.session, "Bajaj Finance", financials=ola_like())
+
+    kpis = set(db_session.session.scalars(select(KpiObservation.kpi_name).where(KpiObservation.company_id == company.id)))
+    assert kpis == {"fin_revenue_growth_yoy_pct", "fin_operating_margin_pct"}
+
+
+def test_which_sectors_count_as_financial_institutions():
+    from app.sources.financials import is_financial_institution
+
+    for label in ("Banks", "NBFC & Lending", "Housing Finance", "Insurance", "Broking & Capital Markets"):
+        assert is_financial_institution(label)
+    for label in ("Fintech and Payments", "IT Services", "Retail & E-commerce", None):
+        assert not is_financial_institution(label)

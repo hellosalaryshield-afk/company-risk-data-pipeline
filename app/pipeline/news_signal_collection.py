@@ -1,4 +1,5 @@
 import hashlib
+import re
 import uuid
 from collections import Counter
 from dataclasses import dataclass
@@ -104,6 +105,13 @@ def headline_mentions(title: str, names: list[str]) -> bool:
 
 
 TIMESPAN_DAYS = {"1w": 7, "2w": 14, "1m": 30, "2m": 60, "3m": 90}
+LEGAL_SUFFIX_RE = re.compile(r"[\s,]+(private limited|pvt\.? ltd\.?|limited|ltd\.?)$", re.I)
+
+
+def search_name(name: str) -> str:
+    """The name as headlines use it: "HDFC Bank Ltd" -> "HDFC Bank". News search engines
+    match the quoted phrase, and headlines rarely carry the legal suffix."""
+    return LEGAL_SUFFIX_RE.sub("", (name or "").strip()) or name
 
 
 def discover_articles(
@@ -236,10 +244,13 @@ def collect_news_signals_for_company(
     db.flush()
 
     notes: list[str] = []
+    # Our own stored publisher feeds are always searched first. When they were, an empty
+    # result is a real "no news", even if GDELT or NewsAPI was busy at the time.
+    feeds_searched = articles is None and discovery in ("auto", "rss")
     if articles is None:
         with step("1. Find articles for {company}", company=company.canonical_name):
             articles, notes = discover_articles(
-                company.canonical_name,
+                search_name(company.canonical_name),
                 settings,
                 timespan=timespan,
                 max_articles=max_articles,
@@ -352,7 +363,7 @@ def collect_news_signals_for_company(
             )
         )
 
-    discovery_failed = not articles and bool(notes)
+    discovery_failed = not articles and bool(notes) and not feeds_searched
     run.status = "failed" if discovery_failed else "completed"
     run.completed_at = datetime.now(UTC)
     run.error_message = "; ".join(notes)[:2000] if discovery_failed else None

@@ -320,13 +320,36 @@ def test_discovery_failure_is_recorded(db_session, zepto, monkeypatch):
     monkeypatch.setattr(news_signal_collection.GdeltClient, "fetch_article_list", refuse)
 
     result = collect_news_signals_for_company(
-        db=db_session.session, query="Zepto", settings=SETTINGS, fetcher=FakeFetcher(), classifier=FakeClassifier({})
+        db=db_session.session, query="Zepto", settings=SETTINGS, fetcher=FakeFetcher(), classifier=FakeClassifier({}),
+        discovery="gdelt",
     )
 
     assert result["status"] == "source_failed"
     assert "GDELT discovery failed" in result["message"]
     collection_run = db_session.session.query(CollectionRun).one()
     assert collection_run.status == "failed"
+
+
+def test_a_busy_gdelt_does_not_void_a_scan_of_the_stored_feeds(db_session, zepto, monkeypatch):
+    def refuse(self, company_name, timespan="1m", max_records=25):
+        raise GdeltRateLimitError("GDELT rate limit reached (HTTP 429).")
+
+    monkeypatch.setattr(news_signal_collection.GdeltClient, "fetch_article_list", refuse)
+
+    result = collect_news_signals_for_company(
+        db=db_session.session, query="Zepto", settings=SETTINGS, fetcher=FakeFetcher(), classifier=FakeClassifier({})
+    )
+
+    # The feeds were searched and named no article: a real "no news", with the GDELT note kept.
+    assert result["status"] == "completed"
+    assert "GDELT discovery failed" in result["message"]
+    assert db_session.session.query(CollectionRun).one().status == "completed"
+
+
+def test_news_is_searched_by_the_name_headlines_use():
+    assert news_signal_collection.search_name("HDFC Bank Ltd") == "HDFC Bank"
+    assert news_signal_collection.search_name("Sumeru Software Solutions Private Limited") == "Sumeru Software Solutions"
+    assert news_signal_collection.search_name("Zepto") == "Zepto"
 
 
 def test_discovery_falls_back_to_newsapi(monkeypatch):

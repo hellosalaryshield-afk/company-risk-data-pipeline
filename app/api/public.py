@@ -16,11 +16,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.companies.directory_lookup import DirectoryIndex, onboard
 from app.companies.repository import CompanyRepository
 from app.companies.resolver import CompanyResolver
 from app.config.settings import get_settings
 from app.database.session import get_db_session
 from app.models.company import Company, CompanyAlias
+from app.models.directory import DirectoryCompany
 from app.models.lead import ReportRequest
 from app.models.scoring import RiskScore
 from app.pipeline.freshness import refresh_company
@@ -75,13 +77,27 @@ def featured_companies(limit: int = Query(5, ge=1, le=20), db: Session = Depends
 
 @router.get("/companies/search")
 def search_companies(q: str = Query(..., min_length=1, max_length=120), db: Session = Depends(get_db_session)) -> dict:
-    """Find a company by name. A typo gets close matches instead of nothing."""
+    """Find a company by name, brand or ticker. A typo gets close matches instead of nothing.
+
+    Companies already scored come first; then the company directory (~13,000 companies from
+    the taxonomy sheet). A directory company is turned into a scorable company when it is
+    returned, and gets its data and score when its summary is opened.
+    """
     resolved = CompanyResolver(CompanyRepository(db)).resolve(q)
     scores = latest_scores(db)
     if resolved.match:
         return {"status": "matched", "query": q, "match": company_card(resolved.match, scores.get(resolved.match.id)), "suggestions": []}
 
+    hits, exact = DirectoryIndex.get(db).search(q)
+    if hits and (exact or len(hits) == 1):
+        company = onboard(db, db.get(DirectoryCompany, hits[0].id))
+        return {"status": "matched", "query": q, "match": company_card(company, scores.get(company.id)), "suggestions": []}
+
     candidates = list(resolved.candidates)
+    for hit in hits:
+        company = onboard(db, db.get(DirectoryCompany, hit.id))
+        if all(c.id != company.id for c in candidates):
+            candidates.append(company)
     if not candidates and resolved.normalized_query:
         aliases = db.execute(select(CompanyAlias.normalized_alias, CompanyAlias.company_id)).all()
         by_alias = {alias: company_id for alias, company_id in aliases}
