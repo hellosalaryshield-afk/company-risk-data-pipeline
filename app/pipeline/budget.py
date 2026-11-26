@@ -1,12 +1,13 @@
 """Monthly budget for paid sources.
 
-Glassdoor (via Apify) is billed per call; the free plan covers about 500 calls a month.
-Every attempt counts, successful or not, since Apify bills the run either way.
+Glassdoor (via Apify) is billed about $0.10 per call, so Apify's free $5 a month covers
+about 50 calls. Every real call counts, successful or not, since Apify bills the run either
+way. Re-checking an answer already stored makes no call and is not counted.
 """
 
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config.settings import Settings
@@ -17,12 +18,13 @@ from app.pipeline.source_selection import WORKPLACE_SOURCE
 def glassdoor_calls_this_month(db: Session, now: datetime | None = None) -> int:
     now = now or datetime.now(UTC)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    return db.scalar(
-        select(func.count(CollectionRun.id)).where(
+    runs = db.scalars(
+        select(CollectionRun.extra_metadata).where(
             CollectionRun.extra_metadata["source"].as_string() == WORKPLACE_SOURCE,
             CollectionRun.started_at >= month_start,
         )
-    ) or 0
+    ).all()
+    return sum(1 for metadata in runs if not (metadata or {}).get("reused_from_run_id"))
 
 
 def glassdoor_allowed_on_search(db: Session, settings: Settings, now: datetime | None = None) -> bool:

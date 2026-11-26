@@ -182,3 +182,57 @@ def test_run_metadata_records_the_estimated_cost(db_session):
 
     run = db_session.session.get(CollectionRun, result["collection_run_id"])
     assert run.extra_metadata["estimated_cost_usd"] == 0.10
+
+
+def test_us_company_is_searched_by_its_brand_and_matched_on_it(db_session, monkeypatch):
+    """Alphabet's staff review it as "Google"; searching "Alphabet Inc" finds another company."""
+    from app.models.directory import DirectoryCompany
+
+    company = db_session.create_company(canonical_name="Alphabet Inc", aliases=["Google"], country="United States")
+    db_session.session.add(
+        DirectoryCompany(
+            name="Alphabet Inc", name_key="alphabet", sector="US-listed companies", industry="Internet & Software",
+            listing="listed", size_tier="large", peer_group="x", entity_type="company", coverage="full",
+            country="United States", aliases="Google|YouTube", company_id=company.id,
+        )
+    )
+    db_session.session.commit()
+    searched = []
+
+    def fake_fetch(self, name):
+        searched.append(name)
+        return {**ZS_RECORD, "name": "Google"}
+
+    monkeypatch.setattr(workplace_collection.GlassdoorClient, "fetch_company_profile", fake_fetch)
+
+    result = collect_workplace_for_company(db=db_session.session, query="Alphabet Inc", settings=SettingsStub())
+
+    assert searched == ["Google"]
+    assert result["match_confidence"] == "high"
+    assert stored_kpis(db_session, company.id)["glassdoor_rating"] == 3.5
+
+
+def test_indian_company_is_searched_by_its_display_name(db_session, monkeypatch):
+    db_session.create_company(canonical_name="Ola Cabs", aliases=["Ola"])
+    searched = []
+    monkeypatch.setattr(
+        workplace_collection.GlassdoorClient, "fetch_company_profile", lambda self, name: searched.append(name) or None
+    )
+
+    collect_workplace_for_company(db=db_session.session, query="Ola Cabs", settings=SettingsStub())
+
+    assert searched == ["Ola Cabs"]
+
+
+def test_rechecking_a_stored_answer_is_not_billed(db_session):
+    from datetime import UTC, datetime
+
+    from app.pipeline.budget import glassdoor_calls_this_month
+
+    db_session.create_company(canonical_name="ZS Associates", aliases=["ZS"])
+    collect_workplace_for_company(db_session.session, "ZS Associates", EmptySettingsStub(), raw_record=ZS_RECORD)
+    collect_workplace_for_company(
+        db_session.session, "ZS Associates", EmptySettingsStub(), raw_record=ZS_RECORD, reused_from_run_id=1
+    )
+
+    assert glassdoor_calls_this_month(db_session.session, datetime.now(UTC)) == 1

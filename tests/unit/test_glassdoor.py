@@ -122,3 +122,17 @@ def test_ratings_and_job_count_are_marked_lower_is_riskier():
     assert "glassdoor_business_outlook_rating" in LOWER_IS_RISKIER
     # Review volume says nothing about direction of risk on its own.
     assert "glassdoor_review_count" not in LOWER_IS_RISKIER
+
+
+def test_result_that_is_a_known_name_of_the_company_matches():
+    """Ola Cabs is listed on Glassdoor as plain "Ola"."""
+    confidence, reason = match_confidence("Ola Cabs", {"name": "Ola"}, known_names=["Ola", "ANI Technologies"])
+
+    assert confidence == "high"
+    assert "known names" in reason
+
+
+def test_known_names_do_not_let_a_sister_company_through():
+    confidence, _ = match_confidence("Ola Cabs", {"name": "Ola Electric"}, known_names=["Ola", "Olacabs"])
+
+    assert confidence == "low"

@@ -34,7 +34,8 @@ class Settings(BaseSettings):
     # Fetch Glassdoor (paid, via Apify) the first time a company is searched on the website,
     # at most this many calls per calendar month. Off unless switched on.
     glassdoor_on_search: bool = False
-    glassdoor_monthly_limit: int = 450
+    # About $0.10 a call; Apify's free $5 a month covers about 50, so stop a little short.
+    glassdoor_monthly_limit: int = 45
 
     model_config = SettingsConfigDict(
         env_file=".env",

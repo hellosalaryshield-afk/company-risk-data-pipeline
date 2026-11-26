@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Any
 
 import httpx
@@ -11,7 +12,8 @@ GLASSDOOR_ACTOR = "burbn~glassdoor-company-search"
 DEFAULT_DOMAIN = "www.glassdoor.co.in"
 
 # Each actor run is billed per event. Kept here so the cost of a refresh is visible in code
-# and not only in the Apify dashboard. Verified against a real run on 2026-09-09.
+# and not only in the Apify dashboard. Verified against real runs on 2026-09-09 and
+# 2026-11-26. Apify's free $5 a month therefore covers about 50 runs.
 COST_PER_RUN_USD = 0.10
 
 
@@ -40,13 +42,16 @@ class GlassdoorClient:
         return items[0]
 
 
-def match_confidence(query: str, record: dict[str, Any]) -> tuple[str, str]:
+def match_confidence(query: str, record: dict[str, Any], known_names: Iterable[str] = ()) -> tuple[str, str]:
     """Judge whether the returned profile is actually the company we asked for.
 
     The actor returns its top search hit with no verification, so a query for the Indian
     "Zepto" can come back as "Zepto (Mexico)". Attaching those ratings to the wrong company
     would silently corrupt the dataset, so every match is scored and low matches are not
     written onto the company record.
+
+    `known_names` are the company's other names (brand, former or registered names). A
+    result that is exactly one of them is the same company: Ola Cabs is "Ola" on Glassdoor.
     """
     returned_name = record.get("name") or ""
     normalized_query = normalize_company_name(query)
@@ -57,6 +62,9 @@ def match_confidence(query: str, record: dict[str, Any]) -> tuple[str, str]:
 
     if normalized_query == normalized_result:
         return "high", "Returned name matches the query exactly."
+
+    if normalized_result in {normalize_company_name(name) for name in known_names}:
+        return "high", f"Returned '{returned_name}', one of the company's known names."
 
     query_tokens = set(normalized_query.split())
     result_tokens = set(normalized_result.split())

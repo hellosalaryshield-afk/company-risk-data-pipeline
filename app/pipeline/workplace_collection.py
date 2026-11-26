@@ -11,6 +11,7 @@ from app.companies.resolver import CompanyResolver
 from app.config.settings import Settings
 from app.models.collection import CollectionRun, KpiObservation, SourceRecord
 from app.models.company import Company
+from app.models.directory import DirectoryCompany
 from app.models.source import DataSource
 from app.sources.glassdoor import (
     COST_PER_RUN_USD,
@@ -62,6 +63,7 @@ def collect_workplace_for_company(
     settings: Settings,
     domain: str = DEFAULT_DOMAIN,
     raw_record: dict[str, Any] | None | object = MISSING_RECORD,
+    reused_from_run_id: int | None = None,
 ) -> dict:
     resolver = CompanyResolver(CompanyRepository(db))
     resolved = resolver.resolve(query)
@@ -75,14 +77,13 @@ def collect_workplace_for_company(
         }
 
     company = resolved.match
+    search_name = glassdoor_search_name(db, company)
 
     if raw_record is MISSING_RECORD:
         if not settings.apify_token:
             raise WorkplaceCollectionError("APIFY_TOKEN is not configured.")
         try:
-            raw_record = GlassdoorClient(settings.apify_token, domain=domain).fetch_company_profile(
-                company.canonical_name
-            )
+            raw_record = GlassdoorClient(settings.apify_token, domain=domain).fetch_company_profile(search_name)
         except httpx.TimeoutException:
             return record_workplace_failure(
                 db=db,
@@ -112,8 +113,11 @@ def collect_workplace_for_company(
         extra_metadata={
             "source": WORKPLACE_SOURCE_NAME,
             "query": query,
+            "searched_as": search_name,
             "domain": domain,
-            "estimated_cost_usd": COST_PER_RUN_USD,
+            # A stored answer checked again costs nothing; only a real call is billed.
+            "estimated_cost_usd": 0 if reused_from_run_id else COST_PER_RUN_USD,
+            **({"reused_from_run_id": reused_from_run_id} if reused_from_run_id else {}),
         },
     )
     db.add(run)
@@ -135,7 +139,7 @@ def collect_workplace_for_company(
             "kpis": {},
         }
 
-    confidence, match_reason = match_confidence(company.canonical_name, raw_record)
+    confidence, match_reason = match_confidence(company.canonical_name, raw_record, known_names(company, search_name))
     normalized = normalize_glassdoor_record(raw_record)
     normalized["match_confidence"] = confidence
     normalized["match_reason"] = match_reason
@@ -229,6 +233,25 @@ def collect_workplace_for_company(
         "workplace_record": normalized,
         "kpis": kpis,
     }
+
+
+def glassdoor_search_name(db: Session, company: Company) -> str:
+    """The name to search Glassdoor for.
+
+    Employees review a brand, not a holding company: "Alphabet Inc" finds an unrelated
+    "Alphabet (CA)", while Alphabet's staff review it as "Google". Companies outside India
+    list their brand as the first alias in the directory, so that is searched. Indian
+    companies are searched by their display name, which is already the brand ("Ola Cabs").
+    """
+    if (company.country or "India") == "India":
+        return company.canonical_name
+    row = db.scalars(select(DirectoryCompany).where(DirectoryCompany.company_id == company.id)).first()
+    brands = [name.strip() for name in (row.aliases or "").split("|") if name.strip()] if row else []
+    return brands[0] if brands else company.canonical_name
+
+
+def known_names(company: Company, search_name: str) -> list[str]:
+    return [search_name, *(alias.alias for alias in company.aliases)]
 
 
 def company_payload(company: Company) -> dict:
