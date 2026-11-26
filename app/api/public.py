@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.companies.directory_lookup import DirectoryIndex, onboard
+from app.companies.normalization import normalize_company_name
 from app.companies.repository import CompanyRepository
 from app.companies.resolver import CompanyResolver
 from app.config.settings import get_settings
@@ -74,6 +75,83 @@ def featured_companies(limit: int = Query(5, ge=1, le=20), db: Session = Depends
         key=lambda s: (-float(s.score), companies[s.company_id].canonical_name),
     )
     return [company_card(companies[s.company_id], s) for s in ranked[:limit]]
+
+
+def listing_label(row: DirectoryCompany | None, company: Company | None) -> str:
+    if row is not None and row.foreign_ticker:
+        return f"{row.foreign_exchange}: {row.foreign_ticker}"
+    if row is not None and row.nse_symbol:
+        return f"NSE: {row.nse_symbol}"
+    if row is not None and row.bse_code:
+        return f"BSE: {row.bse_code}"
+    if company is not None and company.ticker and company.exchange:
+        return f"{company.exchange}: {company.ticker}"
+    return "Private company"
+
+
+@router.get("/companies/suggest")
+def suggest_companies(q: str = Query(..., min_length=1, max_length=120), db: Session = Depends(get_db_session)) -> dict:
+    """Type-ahead suggestions while the visitor types. Read-only: nothing is created here.
+
+    Each item is either a company we already have (kind "company", opened directly) or a
+    directory row (kind "directory", opened through /public/directory/{id}/open).
+    """
+    key = normalize_company_name(q)
+    if len(key) < 2:
+        return {"query": q, "items": []}
+    scores = latest_scores(db)
+    hits = DirectoryIndex.get(db).suggest(q, limit=8)
+    rows = {r.id: r for r in db.scalars(select(DirectoryCompany).where(DirectoryCompany.id.in_([h.id for h in hits])))}
+    linked = {r.company_id: r for r in rows.values() if r.company_id}
+    companies = {c.id: c for c in db.scalars(select(Company).where(Company.id.in_(list(linked))))} if linked else {}
+
+    ranked: list[tuple[int, int, dict]] = []
+    for position, hit in enumerate(hits):
+        row = rows.get(hit.id)
+        if row is None:
+            continue
+        exact = hit.key == key or key in hit.brands
+        company = companies.get(row.company_id) if row.company_id else None
+        score = scores.get(company.id) if company else None
+        ranked.append((0 if exact else 1, position, {
+            "kind": "company" if company else "directory",
+            "id": company.id if company else row.id,
+            "name": company.canonical_name if company else row.name,
+            "detail": f"{row.industry} · {listing_label(row, company)}",
+            "score": round(float(score.score)) if score and score.score is not None else None,
+            "band": score.band if score else None,
+        }))
+
+    # Companies we score that are not in the directory (added by hand, e.g. Ola Electric).
+    seen = {item["id"] for _, _, item in ranked if item["kind"] == "company"}
+    aliases = db.execute(
+        select(CompanyAlias.company_id, CompanyAlias.normalized_alias)
+        .where(CompanyAlias.normalized_alias.like(f"{key}%"))
+        .limit(20)
+    ).all()
+    extra_ids = list(dict.fromkeys(cid for cid, _ in aliases if cid not in seen and cid not in linked))
+    exact_ids = {cid for cid, alias in aliases if alias == key}
+    in_directory = set(db.scalars(select(DirectoryCompany.company_id).where(DirectoryCompany.company_id.in_(extra_ids)))) if extra_ids else set()
+    for company in db.scalars(select(Company).where(Company.id.in_([i for i in extra_ids if i not in in_directory]))):
+        score = scores.get(company.id)
+        ranked.append((0 if company.id in exact_ids else 1, -1, {
+            "kind": "company", "id": company.id, "name": company.canonical_name,
+            "detail": f"{company.sector or 'Company'} · {listing_label(None, company)}",
+            "score": round(float(score.score)) if score and score.score is not None else None,
+            "band": score.band if score else None,
+        }))
+    ranked.sort(key=lambda item: (item[0], item[1]))
+    return {"query": q, "items": [item for _, _, item in ranked][:8]}
+
+
+@router.get("/directory/{directory_id}/open")
+def open_directory_company(directory_id: int, db: Session = Depends(get_db_session)) -> dict:
+    """Turn a picked type-ahead suggestion into a company the panel can open."""
+    row = db.get(DirectoryCompany, directory_id)
+    if row is None or row.coverage == "not_scored":
+        raise HTTPException(status_code=404, detail="Company not found.")
+    company = onboard(db, row)
+    return company_card(company, latest_scores(db).get(company.id))
 
 
 @router.get("/companies/search")

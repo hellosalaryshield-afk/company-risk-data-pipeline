@@ -29,6 +29,8 @@ DIRECTORY_CSV = Path("data/company_directory.csv")
 # US-listed companies with large teams in India; the taxonomy sheet covers India only.
 US_COMPANIES_CSV = Path("data/us_companies.csv")
 US_SECTOR = "US-listed companies"
+# Well-known Indian companies missing from the sheet (e.g. Ola Cabs), with registry CINs.
+EXTRA_COMPANIES_CSV = Path("data/extra_companies.csv")
 STARTUP_TIERS = {"late_stage", "growth_stage", "early_stage"}
 # Bigger, better-covered companies first when a search is ambiguous.
 COVERAGE_RANK = {"full": 0, "registry": 1, "basic": 2}
@@ -79,14 +81,48 @@ def us_directory_rows(path: Path) -> list[DirectoryCompany]:
     ]
 
 
-def load_directory(db: Session, path: Path = DIRECTORY_CSV, us_path: Path = US_COMPANIES_CSV) -> dict:
+def extra_directory_rows(path: Path) -> list[DirectoryCompany]:
+    """Rows for data/extra_companies.csv: Indian companies missing from the sheet, listed
+    (with an NSE symbol) or unlisted (with a CIN), plus the names people type."""
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8") as handle:
+        records = list(csv.DictReader(handle))
+    rows = []
+    for r in records:
+        listed = bool((r.get("nse_symbol") or "").strip())
+        listing = "listed" if listed else "unlisted"
+        rows.append(DirectoryCompany(
+            name=r["name"], name_key=name_key(r["name"]), sector=r["sector"], industry=r["industry"],
+            listing=listing, board="mainboard" if listed else None, size_tier=r["size_tier"],
+            peer_group=f"{r['sector']} / {r['industry']} / {listing} / {r['size_tier']}",
+            nse_symbol=(r.get("nse_symbol") or "").strip() or None, cin=r["cin"] or None, entity_type="company",
+            coverage="full" if listed else "registry" if r["cin"] else "basic",
+            country="India", aliases=r.get("aliases") or None,
+        ))
+    return rows
+
+
+def load_directory(db: Session, path: Path = DIRECTORY_CSV, us_path: Path = US_COMPANIES_CSV,
+                   extra_path: Path = EXTRA_COMPANIES_CSV) -> dict:
     """Replace the directory with the CSVs, keeping links to companies already onboarded."""
     links = {(row.name, row.sector): row.company_id
              for row in db.scalars(select(DirectoryCompany).where(DirectoryCompany.company_id.is_not(None)))}
     db.execute(delete(DirectoryCompany))
     with path.open(encoding="utf-8") as handle:
         records = list(csv.DictReader(handle))
+    us_rows = us_directory_rows(us_path)
+    extra_rows = extra_directory_rows(extra_path)
+    # An extra row stands in for the sheet's own row for the same company: the same CIN or
+    # ticker, or a name-only row whose name is one of its aliases ("Rapido" -> Roppen).
+    extra_codes = {code for row in extra_rows for code in (row.cin, row.nse_symbol) if code}
+    extra_names = {key for row in extra_rows for key in (row.name_key, *alias_keys(row.aliases))}
+    replaced = 0
     for record in records:
+        if (record["cin"] and record["cin"] in extra_codes) or (record["nse_symbol"] and record["nse_symbol"] in extra_codes) \
+                or (record["coverage"] == "basic" and name_key(record["name"]) in extra_names):
+            replaced += 1
+            continue
         db.add(DirectoryCompany(
             name=record["name"], name_key=name_key(record["name"]), sector=record["sector"],
             industry=record["industry"], listing=record["listing"], board=record["board"] or None,
@@ -98,15 +134,14 @@ def load_directory(db: Session, path: Path = DIRECTORY_CSV, us_path: Path = US_C
             source_url=record["source_url"] or None, also_listed_under=record["also_listed_under"] or None,
             company_id=links.get((record["name"], record["sector"])),
         ))
-    us_rows = us_directory_rows(us_path)
-    for row in us_rows:
+    for row in [*us_rows, *extra_rows]:
         row.company_id = links.get((row.name, row.sector))
         db.add(row)
     db.flush()
     linked = link_existing_companies(db)
     db.commit()
     DirectoryIndex.reset()
-    return {"rows": len(records), "us_rows": len(us_rows), "kept_links": len(links), "linked_to_existing": linked}
+    return {"rows": len(records), "us_rows": len(us_rows), "extra_rows": len(extra_rows), "replaced_by_extra": replaced, "kept_links": len(links), "linked_to_existing": linked}
 
 
 def link_existing_companies(db: Session) -> int:
@@ -168,6 +203,7 @@ class DirectoryIndex:
             for token in entry.tokens:
                 self.by_token.setdefault(token, set()).add(i)
         self.keys = list(self.by_key)
+        self.by_id = {entry.id: entry for entry in entries}
 
     @classmethod
     def get(cls, db: Session) -> "DirectoryIndex":
@@ -197,6 +233,35 @@ class DirectoryIndex:
         with cls._lock:
             cls._cached = None
             cls._cached_count = -1
+
+    def suggest(self, query: str, limit: int = 8) -> list[Entry]:
+        """Type-ahead: names, brands or tickers that start with what has been typed.
+
+        Unlike `search`, an exact match does not hide the rest, so "ola" lists Ola Cabs
+        and Ola Electric alike and the user picks. Exact matches come first.
+        """
+        key = normalize_company_name(query or "")
+        if len(key) < 2:
+            return []
+        found: dict[int, tuple] = {}
+        code = (query or "").strip().upper()
+        for entry in self.by_code.get(code, []):
+            found[entry.id] = (0, *entry.rank)
+        for entry in self.by_key.get(key, []):
+            found.setdefault(entry.id, (0, *entry.rank))
+        words = key.split()
+        candidates: set[int] | None = None
+        for word in words:
+            hits = {i for token, ids in self.by_token.items() if token.startswith(word) for i in ids}
+            candidates = hits if candidates is None else candidates & hits
+            if not candidates:
+                break
+        for i in candidates or ():
+            entry = self.entries[i]
+            starts = entry.key.startswith(key) or any(b.startswith(key) for b in entry.brands)
+            found.setdefault(entry.id, (1 if starts else 2, *entry.rank))
+        ordered = sorted(found, key=lambda entry_id: found[entry_id])
+        return [self.by_id[i] for i in ordered[:limit]]
 
     def search(self, query: str, limit: int = 5) -> tuple[list[Entry], bool]:
         """Matching entries, best first, and whether the first one is an exact match."""

@@ -35,6 +35,12 @@ def no_real_email(monkeypatch):
     monkeypatch.setattr(smtplib, "SMTP", refuse)
     monkeypatch.setattr(smtplib, "SMTP_SSL", refuse)
     monkeypatch.setenv("MAIL_RELAY_URL", "")  # environment beats .env, so no test reaches the relay
+    # The real admin key and Glassdoor switch in .env must not leak into tests either.
+    monkeypatch.setenv("ADMIN_API_KEY", "")
+    monkeypatch.setenv("GLASSDOOR_ON_SEARCH", "false")
+    from app.config.settings import get_settings
+
+    get_settings.cache_clear()
 
 
 @pytest.fixture(autouse=True)

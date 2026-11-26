@@ -173,3 +173,59 @@ def test_existing_us_companies_stay_linked(db_session, directory):
     existing = db_session.session.scalar(select(Company).where(Company.canonical_name == "Amazon"))
 
     assert amazon.company_id == existing.id and onboard(db_session.session, amazon).id == existing.id
+
+
+def test_suggestions_list_every_match_so_the_visitor_picks(client, db_session):
+    first = client.get("/public/companies/suggest", params={"q": "kot"}).json()
+    names = [item["name"] for item in first["items"]]
+
+    assert names[:2] == ["Kotak Mahindra Bank Ltd", "Kotak Securities Limited"]
+    assert {item["kind"] for item in first["items"]} == {"directory"}  # nothing is created while typing
+    assert db_session.session.scalar(select(Company).where(Company.canonical_name.like("Kotak%"))) is None
+    assert client.get("/public/companies/suggest", params={"q": "k"}).json()["items"] == []
+
+
+def test_an_exact_brand_does_not_hide_the_other_matches(client):
+    items = client.get("/public/companies/suggest", params={"q": "meta"}).json()["items"]
+
+    assert [i["name"] for i in items] == ["Meta Platforms Inc", "Meta Infotech Ltd"]
+    assert items[0]["detail"] == "Internet & Software · NASDAQ: META"
+
+
+def test_picking_a_directory_suggestion_opens_that_exact_company(client, db_session):
+    item = client.get("/public/companies/suggest", params={"q": "kotak sec"}).json()["items"][0]
+
+    card = client.get(f"/public/directory/{item['id']}/open").json()
+    again = client.get("/public/companies/suggest", params={"q": "kotak sec"}).json()["items"][0]
+
+    assert card["name"] == "Kotak Securities Limited"
+    assert again == {**again, "kind": "company", "id": card["id"]}  # now offered as the company itself
+    assert client.get("/public/directory/999999/open").status_code == 404
+
+
+def test_extra_companies_replace_the_sheets_rows_for_the_same_company(db_session, tmp_path):
+    from app.companies.directory_lookup import load_directory
+
+    sheet = tmp_path / "sheet.csv"
+    with sheet.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=COLUMNS)
+        writer.writeheader()
+        writer.writerow(directory_row("Rapido", sector="Infrastructure & Real Estate", industry="Roads & Ports",
+                                      listing="unlisted", size="unknown", coverage="basic"))
+        writer.writerow(directory_row("HDFC Bank Ltd", nse="HDFCBANK"))
+    extra = tmp_path / "extra.csv"
+    extra.write_text(
+        "name,cin,nse_symbol,sector,industry,size_tier,aliases\n"
+        "Rapido (Roppen Transportation Services Private Limited),U52210TG2015PTC097115,,Services,Logistics & Transport,late_stage,Rapido|Roppen\n"
+        "Tata Motors Passenger Vehicles Ltd,,TMPV,Consumer Discretionary,Automobiles & Auto Components,large,Tata Motors\n",
+        encoding="utf-8",
+    )
+
+    result = load_directory(db_session.session, sheet, tmp_path / "none.csv", extra)
+    DirectoryIndex.reset()
+    names = set(db_session.session.scalars(select(DirectoryCompany.name)))
+
+    assert result["replaced_by_extra"] == 1
+    assert names == {"HDFC Bank Ltd", "Rapido (Roppen Transportation Services Private Limited)", "Tata Motors Passenger Vehicles Ltd"}
+    tata = db_session.session.scalar(select(DirectoryCompany).where(DirectoryCompany.nse_symbol == "TMPV"))
+    assert (tata.listing, tata.coverage) == ("listed", "full")
