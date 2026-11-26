@@ -12,6 +12,7 @@ attempt failed is not retried for `FAILED_RETRY_MINUTES`, so a broken API is not
 every request.
 """
 
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -47,6 +48,7 @@ MAX_AGE_DAYS: dict[str, float] = {
 # The sources the scorecard reads, in the order they are checked.
 SCORECARD_SOURCES = tuple(MAX_AGE_DAYS)
 FAILED_RETRY_MINUTES = 60
+logger = logging.getLogger(__name__)
 
 FRESH, STALE, MISSING = "fresh", "stale", "missing"
 
@@ -121,7 +123,13 @@ def refresh_company(
             row["action"] = f"not fetched: failed in the last {FAILED_RETRY_MINUTES} minutes"
         else:
             if source_name == NEWS_SIGNALS_SOURCE:
-                collect_news_feeds_if_stale(db)  # news is found in the stored feeds first
+                # News is found in the stored feeds first. Topping them up is a nicety: if it
+                # fails, the check carries on with the feeds already stored.
+                try:
+                    collect_news_feeds_if_stale(db)
+                except Exception:  # noqa: BLE001 - a feed problem must never break a report
+                    db.rollback()
+                    logger.exception("News feed top-up failed; using the feeds already stored.")
             result = run_source(
                 db=db,
                 source_name=source_name,

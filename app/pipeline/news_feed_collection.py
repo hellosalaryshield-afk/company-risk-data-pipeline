@@ -49,6 +49,8 @@ def collect_news_feeds_if_stale(db: Session, now: datetime | None = None, fetch=
 def store_new(db: Session, items: list[FeedItem]) -> int:
     if not items:
         return 0
+    # A feed can list the same article twice in one fetch; keep the first copy only.
+    items = list({item.url: item for item in reversed(items)}.values())[::-1]
     existing = set(db.scalars(select(NewsFeedItem.url).where(NewsFeedItem.url.in_([i.url for i in items]))).all())
     fresh = [item for item in items if item.url not in existing]
     for item in fresh:

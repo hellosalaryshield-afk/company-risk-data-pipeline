@@ -124,3 +124,28 @@ def test_feeds_are_fetched_only_when_nothing_was_stored_in_the_last_hour(db_sess
     db_session.session.flush()
     assert collect_news_feeds_if_stale(db_session.session, now=NOW, fetch=fake_fetch) is None
     assert fetched == []
+
+
+def test_a_feed_listing_the_same_article_twice_is_stored_once(db_session):
+    from app.models.news_feed import NewsFeedItem
+    from app.pipeline.news_feed_collection import store_new
+    from app.sources.rss_feeds import FeedItem
+
+    item = FeedItem(url="https://x.example/a", title="A", summary=None, publisher="P", feed="F", published_at=NOW)
+    assert store_new(db_session.session, [item, item, FeedItem(url="https://x.example/b", title="B", summary=None,
+                                                                 publisher="P", feed="F", published_at=NOW)]) == 2
+    assert db_session.session.query(NewsFeedItem).count() == 2
+
+
+def test_a_failing_feed_top_up_does_not_break_the_report(db_session, listed, monkeypatch):
+    calls = []
+
+    def broken(db):
+        raise RuntimeError("feed exploded")
+
+    monkeypatch.setattr(freshness, "collect_news_feeds_if_stale", broken)
+    monkeypatch.setattr(freshness, "run_source", lambda db, source_name, **kw: calls.append(source_name) or {"status": "completed"})
+
+    rows = {r["source"]: r for r in refresh_company(db_session.session, listed, Settings(), now=NOW)}
+
+    assert NEWS_SIGNALS_SOURCE in calls and rows[NEWS_SIGNALS_SOURCE]["action"] == "fetched"
