@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     # Used instead of SMTP when set, since Render's free plan blocks SMTP ports.
     mail_relay_url: str | None = None
     mail_relay_key: str | None = None
+    # Internal (non-/public) routes need this key in an X-Admin-Key header. When it is not
+    # set they stay open in development and are closed in production.
+    admin_api_key: str | None = None
+    # Fetch Glassdoor (paid, via Apify) the first time a company is searched on the website,
+    # at most this many calls per calendar month. Off unless switched on.
+    glassdoor_on_search: bool = False
+    glassdoor_monthly_limit: int = 450
 
     model_config = SettingsConfigDict(
         env_file=".env",

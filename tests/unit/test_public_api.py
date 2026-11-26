@@ -77,7 +77,7 @@ def test_a_typo_gets_close_matches_and_nonsense_gets_nothing(client, companies):
 
 def test_summary_refreshes_by_default_and_returns_only_what_the_panel_shows(client, companies, monkeypatch):
     refreshed = []
-    monkeypatch.setattr(public, "refresh_company", lambda db, company, settings: refreshed.append(company.id))
+    monkeypatch.setattr(public, "refresh_company", lambda db, company, settings, **kw: refreshed.append(company.id))
 
     body = client.get(f"/public/companies/{companies['kitebird'].id}/summary").json()
 
@@ -221,3 +221,46 @@ def test_a_relay_refusal_is_reported(monkeypatch):
 
     with pytest.raises(emailer.EmailNotSent, match="bad key"):
         emailer.deliver(message, settings)
+
+
+def test_glassdoor_is_fetched_on_search_only_when_switched_on_and_within_budget(db_session, monkeypatch):
+    from datetime import UTC, datetime
+
+    from app.models.collection import CollectionRun
+    from app.pipeline.budget import glassdoor_allowed_on_search, glassdoor_calls_this_month
+    from app.pipeline.source_selection import WORKPLACE_SOURCE
+
+    now = datetime(2026, 11, 26, 12, tzinfo=UTC)
+    on = Settings(glassdoor_on_search=True, apify_token="t", glassdoor_monthly_limit=2)
+
+    assert not glassdoor_allowed_on_search(db_session.session, Settings(glassdoor_on_search=False, apify_token="t"), now)
+    assert not glassdoor_allowed_on_search(db_session.session, Settings(glassdoor_on_search=True, apify_token=None), now)
+    assert glassdoor_allowed_on_search(db_session.session, on, now)
+
+    company = db_session.create_company(canonical_name="Swiggy")
+    for day, status in ((25, "completed"), (26, "failed")):  # failed runs are billed too
+        db_session.session.add(CollectionRun(company_id=company.id, status=status, started_at=datetime(2026, 11, day, tzinfo=UTC),
+                                             extra_metadata={"source": WORKPLACE_SOURCE}))
+    db_session.session.add(CollectionRun(company_id=company.id, status="completed", started_at=datetime(2026, 10, 30, tzinfo=UTC),
+                                         extra_metadata={"source": WORKPLACE_SOURCE}))  # last month: not counted
+    db_session.session.flush()
+
+    assert glassdoor_calls_this_month(db_session.session, now) == 2
+    assert not glassdoor_allowed_on_search(db_session.session, on, now)
+
+
+def test_internal_routes_need_the_admin_key_in_production(client, monkeypatch):
+    monkeypatch.setattr("app.api.security.get_settings", lambda: Settings(app_env="production", admin_api_key=None))
+    assert client.get("/sources").status_code == 403
+    assert client.get("/health").status_code == 200
+    assert client.get("/public/companies/featured").status_code == 200
+
+    monkeypatch.setattr("app.api.security.get_settings", lambda: Settings(app_env="production", admin_api_key="s3cret"))
+    assert client.get("/sources").status_code == 401
+    assert client.get("/sources", headers={"X-Admin-Key": "wrong"}).status_code == 401
+    assert client.get("/sources", headers={"X-Admin-Key": "s3cret"}).status_code == 200
+
+
+def test_internal_routes_stay_open_in_development_without_a_key(client, monkeypatch):
+    monkeypatch.setattr("app.api.security.get_settings", lambda: Settings(app_env="development", admin_api_key=None))
+    assert client.get("/sources").status_code == 200

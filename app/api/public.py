@@ -25,6 +25,7 @@ from app.models.company import Company, CompanyAlias
 from app.models.directory import DirectoryCompany
 from app.models.lead import ReportRequest
 from app.models.scoring import RiskScore
+from app.pipeline.budget import glassdoor_allowed_on_search
 from app.pipeline.freshness import refresh_company
 from app.reports.emailer import EmailNotSent, deliver, scorecard_email
 from app.reports.scorecard import build_scorecard
@@ -148,7 +149,11 @@ def company_summary(
     if company is None:
         raise HTTPException(status_code=404, detail="Company not found.")
     if refresh:
-        refresh_company(db, company, get_settings())
+        settings = get_settings()
+        # Glassdoor is paid: fetched on a search only when switched on and within the
+        # monthly budget, and like every source only when missing or older than 90 days.
+        refresh_company(db, company, settings,
+                        include_metered_sources=glassdoor_allowed_on_search(db, settings))
     view = build_scorecard(db, company)
     view["id"] = company.id
 
