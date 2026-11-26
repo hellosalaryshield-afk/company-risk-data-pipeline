@@ -356,7 +356,10 @@
   <div class="relative max-w-6xl mx-auto">
     <div class="grid lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-12 lg:gap-16 items-center">
 
-      <div data-aos="fade-up">
+      <!-- relative z-20: the fade-in animation gives each block its own layer, and later
+           blocks are drawn on top; this keeps the type-ahead list above the panel and the
+           "Recently checked" list. -->
+      <div data-aos="fade-up" class="relative z-20">
         <p class="font-body text-xs text-gold tracking-widest uppercase mb-3">Company Risk Check</p>
         <h2 class="font-display text-4xl md:text-5xl lg:text-[56px] font-medium text-cream leading-[1.08] mb-5">
           Is your company<br /><em class="not-italic text-gold-grad">at risk?</em>
